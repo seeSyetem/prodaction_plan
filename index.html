@@ -256,7 +256,7 @@ function buildDailyForm() {
     div.innerHTML =
     '<label>' + p + '</label>' +
     '<input type="number" min="0" id="entry_' + p + '">' +
-    '<input type="number" min="0" id="actual_' + p + '">';
+     '<label>' + p + '</label>' +'<input type="number" min="0" id="actual_' + p + '">';
     form.insertBefore(div, saveBtn);
   });
 }
