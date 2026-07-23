@@ -283,41 +283,16 @@ head.innerHTML = htmlHead;
 // ========================
 // แถว ลิตรตามแผน
 // ========================
-let planRow = `
-<tr>
-    <th class="text-start">
-        ลิตรตามแผน
-    </th>`;
+let planRow = `<tr><th class="text-start"> ลิตรตามแผน</th>`;
 PRODUCTS.forEach(product => {
-    planRow += `
-        <td>
-            <input
-                type="number"
-                min="0"
-                class="form-control text-center"
-                id="plan_${product}"
-                value="0">
-        </td>`;
+    planRow += `<td><input type="number" min="0" class="form-control text-center" id="plan_${product}"value="0"></td>`;
 });
 planRow += `</tr>`;
 // ========================
 // แถว ลิตรที่ได้จริง
 // ========================
-let actualRow = `
-<tr>
-    <th class="text-start">
-        ลิตรที่ได้จริง
-    </th>`;
-PRODUCTS.forEach(product => {
-    actualRow += `
-        <td>
-            <input
-                type="number"
-                min="0"
-                class="form-control text-center"
-                id="actual_${product}"
-                value="0">
-        </td>`;
+let actualRow = `<tr><th class="text-start">ลิตรที่ได้จริง</th>`;
+PRODUCTS.forEach(product => {actualRow += `<td><input type="number" min="0" class="form-control text-center" id="actual_${product}" value="0"></td>`;
 });
 actualRow += `</tr>`;
 body.innerHTML = planRow + actualRow;
