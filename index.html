@@ -321,6 +321,7 @@ PRODUCTS.forEach(product => {
 });
 actualRow += `</tr>`;
 body.innerHTML = planRow + actualRow;
+   form.insertBefore(div, saveBtn);
 }
 
 function buildDailyHeader() {
