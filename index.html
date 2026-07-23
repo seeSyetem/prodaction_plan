@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ยอดผลิตรายเดือน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root{
+    --primary-dark:#0a4d78; --sidebar-bg:#003f66; --accent:#f2b705;
+    --accent-light:#fff3cf; --bg-body:#eaf4fb; --text-main:#1b2b3a;
+    --text-muted:#6f8fa8; --border:#cfe3f2; --card:#ffffff;
+    --success:#16a34a; --success-light:#dcfce7;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg-body); font-family:'Sarabun',sans-serif;
+    color:var(--text-main); font-size:14px; -webkit-font-smoothing:antialiased;
+  }
+  header{
+    background:var(--sidebar-bg); color:#fff; padding:18px 24px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+  }
+  header h1{font-size:17px; font-weight:700; margin:0; display:flex; align-items:center; gap:10px}
+  header h1 i{color:var(--accent)}
+  .year-picker{display:flex; align-items:center; gap:8px}
+  .year-picker select, .year-picker button{
+    font-family:inherit; font-size:14px; border-radius:8px; border:none; padding:8px 12px; cursor:pointer;
+  }
+  .year-picker select{background:#fff; color:var(--text-main)}
+  .year-picker button{background:var(--accent); color:var(--primary-dark); font-weight:700}
+  .year-picker button:hover{filter:brightness(1.05)}
+
+  main{max-width:1200px; margin:0 auto; padding:22px 18px 60px}
+
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:20px}
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:16px 18px; box-shadow:0 2px 8px rgba(15,23,42,.04);
+  }
+  .card .label{font-size:12px; color:var(--text-muted); font-weight:600; display:flex; justify-content:space-between; align-items:center}
+  .card .value{font-size:26px; font-weight:700; color:var(--primary-dark); margin-top:6px}
+  .card.accent{border-color:var(--accent)}
+  .card.accent .value{color:#b8860b}
+
+  .table-wrap{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    overflow-x:auto; box-shadow:0 2px 8px rgba(15,23,42,.04);
+  }
+  table{border-collapse:collapse; width:100%; min-width:920px}
+  thead th{
+    background:var(--sidebar-bg); color:#fff; font-size:12px; font-weight:600;
+    padding:10px 8px; text-align:right; white-space:nowrap; position:sticky; top:0;
+  }
+  thead th:first-child, thead th:nth-child(2){text-align:left}
+  tbody td{
+    padding:6px 6px; text-align:right; border-bottom:1px solid var(--border); font-size:13px;
+  }
+  tbody td:first-child{text-align:center; color:var(--text-muted); font-size:12px; width:32px}
+  tbody td:nth-child(2){text-align:left; font-weight:600; white-space:nowrap}
+  tbody tr:hover{background:var(--accent-light)}
+  .qty-input{
+    width:84px; padding:6px 8px; border:1px solid var(--border); border-radius:6px;
+    text-align:right; font-family:inherit; font-size:13px; background:#fffdf9;
+  }
+  .qty-input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(242,183,5,.2)}
+  td.total-cell{font-weight:700; color:var(--primary-dark); background:#f5fafd}
+  td.bottle-cell{color:var(--text-muted)}
+  tfoot td{
+    background:var(--accent-light); font-weight:700; color:var(--primary-dark);
+    padding:10px 6px; border-top:2px solid var(--accent);
+  }
+  tfoot td:first-child, tfoot td:nth-child(2){text-align:left}
+  tfoot td:not(:first-child):not(:nth-child(2)){text-align:right}
+
+  .save-indicator{
+    position:fixed; bottom:20px; right:20px; background:var(--primary-dark); color:#fff;
+    padding:10px 18px; border-radius:30px; font-size:13px; font-weight:600;
+    box-shadow:0 6px 18px rgba(0,0,0,.2); display:flex; align-items:center; gap:8px;
+    opacity:0; transform:translateY(10px); transition:opacity .25s, transform .25s; pointer-events:none;
+  }
+  .save-indicator.show{opacity:1; transform:translateY(0)}
+  .save-indicator.ok{background:var(--success)}
+  .save-indicator i{font-size:12px}
+  .hint{font-size:12px; color:var(--text-muted); margin:10px 2px 0}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><i class="fas fa-chart-column"></i> ยอดผลิตรายเดือน</h1>
+  <div class="year-picker">
+    <select id="yearSelect"></select>
+    <button id="addYearBtn" type="button"><i class="fas fa-plus"></i> เพิ่มปี</button>
+  </div>
+</header>
+
+<main>
+  <div class="cards" id="summaryCards"></div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr id="headerRow">
+          <th>#</th>
+          <th>เดือน</th>
+          <!-- คอลัมน์ผลิตภัณฑ์ถูกเติมด้วย JS -->
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+      <tfoot>
+        <tr id="footerRow"></tr>
+      </tfoot>
+    </table>
+  </div>
+  <p class="hint"><i class="fas fa-circle-info"></i> พิมพ์ตัวเลขในช่องแล้วกดออกจากช่อง (Tab/คลิกที่อื่น) ระบบจะบันทึกให้อัตโนมัติ &nbsp;|&nbsp; สูตร: ขวด/เดือน = รวมเดือน ÷ 0.31</p>
+</main>
+
+<div class="save-indicator" id="saveIndicator"><i class="fas fa-circle-notch fa-spin"></i> <span>กำลังบันทึก...</span></div>
+
+<script>
+const SUPABASE_URL = "https://yhgrkgbarutrzhignowg.supabase.co";
+const SUPABASE_KEY = "sb_publishable_P3YwKv-rIX6sEwBAoqJQHg_9mu4cM8j";
+const TABLE = "monthly_production";
+const BOTTLE_SIZE = 0.31; // ลิตรต่อขวด
+
+const PRODUCTS = ["OR","LOW","BN","CN","MG","CM","BK","GT"];
+const MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+
+let currentYear = new Date().getFullYear() + 543 - 543; // ใช้ปี ค.ศ. ตรงๆ (แก้เป็น พ.ศ. ได้ถ้าต้องการ)
+let dataMap = {}; // key: "month_product" -> qty
+
+async function supaFetch(path, options = {}) {
+  const res = await fetch(SUPABASE_URL + "/rest/v1/" + path, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_KEY,
+      Authorization: "Bearer " + SUPABASE_KEY,
+      Prefer: options.prefer || "return=representation",
+      ...(options.headers || {})
+    }
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error("Supabase error " + res.status + ": " + txt);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+function buildHeader() {
+  const headerRow = document.getElementById('headerRow');
+  PRODUCTS.forEach(p => {
+    const th = document.createElement('th');
+    th.textContent = p;
+    headerRow.appendChild(th);
+  });
+  const thTotal = document.createElement('th'); thTotal.textContent = 'รวมเดือน'; headerRow.appendChild(thTotal);
+  const thBottle = document.createElement('th'); thBottle.textContent = 'ขวด/เดือน'; headerRow.appendChild(thBottle);
+}
+
+function buildBody() {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  MONTHS.forEach((label, i) => {
+    const month = i + 1;
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + month + '</td><td>' + label + '</td>';
+    PRODUCTS.forEach(p => {
+      const td = document.createElement('td');
+      const input = document.createElement('input');
+      input.type = 'number'; input.min = '0'; input.className = 'qty-input';
+      input.dataset.month = month; input.dataset.product = p;
+      input.addEventListener('change', onCellChange);
+      td.appendChild(input);
+      tr.appendChild(td);
+    });
+    const tdTotal = document.createElement('td');
+    tdTotal.className = 'total-cell'; tdTotal.id = 'total-m' + month;
+    tr.appendChild(tdTotal);
+
+    const tdBottle = document.createElement('td');
+    tdBottle.className = 'bottle-cell'; tdBottle.id = 'bottle-m' + month;
+    tr.appendChild(tdBottle);
+
+    tbody.appendChild(tr);
+  });
+}
+
+function buildFooter() {
+  const footerRow = document.getElementById('footerRow');
+  footerRow.innerHTML = '<td>#</td><td>รวม</td>';
+  PRODUCTS.forEach(p => {
+    const td = document.createElement('td'); td.id = 'sum-' + p; td.textContent = '0';
+    footerRow.appendChild(td);
+  });
+  const tdGrand = document.createElement('td'); tdGrand.id = 'sum-total'; tdGrand.textContent = '0';
+  footerRow.appendChild(tdGrand);
+  const tdGrandBottle = document.createElement('td'); tdGrandBottle.id = 'sum-bottle'; tdGrandBottle.textContent = '0';
+  footerRow.appendChild(tdGrandBottle);
+}
+
+function fmt(n) {
+  n = Number(n) || 0;
+  return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
+function recalc() {
+  let grandTotal = 0;
+  const productSums = {}; PRODUCTS.forEach(p => productSums[p] = 0);
+
+  for (let month = 1; month <= 12; month++) {
+    let monthTotal = 0;
+    PRODUCTS.forEach(p => {
+      const qty = dataMap[month + '_' + p] || 0;
+      monthTotal += qty;
+      productSums[p] += qty;
+    });
+    grandTotal += monthTotal;
+    const totalEl = document.getElementById('total-m' + month);
+    const bottleEl = document.getElementById('bottle-m' + month);
+    if (totalEl) totalEl.textContent = monthTotal ? fmt(monthTotal) : '-';
+    if (bottleEl) bottleEl.textContent = monthTotal ? fmt(monthTotal / BOTTLE_SIZE) : '-';
+  }
+
+  PRODUCTS.forEach(p => {
+    const el = document.getElementById('sum-' + p);
+    if (el) el.textContent = fmt(productSums[p]);
+  });
+  document.getElementById('sum-total').textContent = fmt(grandTotal);
+  document.getElementById('sum-bottle').textContent = fmt(grandTotal / BOTTLE_SIZE);
+
+  renderSummaryCards(grandTotal);
+}
+
+function renderSummaryCards(grandTotal) {
+  const wrap = document.getElementById('summaryCards');
+  wrap.innerHTML =
+    '<div class="card"><div class="label"><span>ยอดรวมทั้งปี (ลิตร)</span><i class="fas fa-droplet"></i></div><div class="value">' + fmt(grandTotal) + '</div></div>' +
+    '<div class="card accent"><div class="label"><span>ขวดรวมทั้งปี</span><i class="fas fa-bottle-water"></i></div><div class="value">' + fmt(grandTotal / BOTTLE_SIZE) + '</div></div>' +
+    '<div class="card"><div class="label"><span>เฉลี่ย/เดือน (ลิตร)</span><i class="fas fa-chart-line"></i></div><div class="value">' + fmt(grandTotal / 12) + '</div></div>';
+}
+
+function showSaveIndicator(state) {
+  const el = document.getElementById('saveIndicator');
+  el.classList.remove('ok');
+  if (state === 'saving') {
+    el.querySelector('span').textContent = 'กำลังบันทึก...';
+    el.querySelector('i').className = 'fas fa-circle-notch fa-spin';
+    el.classList.add('show');
+  } else if (state === 'saved') {
+    el.querySelector('span').textContent = 'บันทึกแล้ว';
+    el.querySelector('i').className = 'fas fa-check';
+    el.classList.add('show', 'ok');
+    setTimeout(() => el.classList.remove('show'), 1400);
+  } else if (state === 'error') {
+    el.querySelector('span').textContent = 'บันทึกไม่สำเร็จ';
+    el.querySelector('i').className = 'fas fa-triangle-exclamation';
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2200);
+  }
+}
+
+async function onCellChange(e) {
+  const input = e.target;
+  const month = parseInt(input.dataset.month, 10);
+  const product = input.dataset.product;
+  const qty = parseFloat(input.value) || 0;
+  dataMap[month + '_' + product] = qty;
+  recalc();
+
+  showSaveIndicator('saving');
+  try {
+    await supaFetch(TABLE + '?on_conflict=year,month,product', {
+      method: 'POST',
+      prefer: 'resolution=merge-duplicates',
+      body: JSON.stringify({ year: currentYear, month, product, qty })
+    });
+    showSaveIndicator('saved');
+  } catch (err) {
+    console.error(err);
+    showSaveIndicator('error');
+  }
+}
+
+async function loadYear(year) {
+  currentYear = year;
+  dataMap = {};
+  try {
+    const rows = await supaFetch(TABLE + '?year=eq.' + year + '&select=month,product,qty');
+    (rows || []).forEach(r => { dataMap[r.month + '_' + r.product] = parseFloat(r.qty) || 0; });
+  } catch (err) {
+    console.error('loadYear error', err);
+  }
+  // เติมค่าลงช่องกรอก
+  document.querySelectorAll('.qty-input').forEach(input => {
+    const key = input.dataset.month + '_' + input.dataset.product;
+    const v = dataMap[key];
+    input.value = v ? v : '';
+  });
+  recalc();
+}
+
+async function loadAvailableYears() {
+  let years = [];
+  try {
+    const rows = await supaFetch(TABLE + '?select=year');
+    years = [...new Set((rows || []).map(r => r.year))];
+  } catch (err) { console.error(err); }
+  const thisYear = new Date().getFullYear();
+  if (!years.includes(thisYear)) years.push(thisYear);
+  years.sort((a, b) => b - a);
+
+  const sel = document.getElementById('yearSelect');
+  sel.innerHTML = '';
+  years.forEach(y => {
+    const opt = document.createElement('option'); opt.value = y; opt.textContent = 'ปี ' + y;
+    sel.appendChild(opt);
+  });
+  sel.value = years[0];
+  await loadYear(parseInt(sel.value, 10));
+}
+
+document.getElementById('yearSelect').addEventListener('change', (e) => loadYear(parseInt(e.target.value, 10)));
+
+document.getElementById('addYearBtn').addEventListener('click', () => {
+  const input = prompt('ระบุปี (ค.ศ.) ที่ต้องการเพิ่ม เช่น ' + (new Date().getFullYear() + 1));
+  const year = parseInt(input, 10);
+  if (!year || year < 2000 || year > 2200) return;
+  const sel = document.getElementById('yearSelect');
+  if (![...sel.options].some(o => parseInt(o.value, 10) === year)) {
+    const opt = document.createElement('option'); opt.value = year; opt.textContent = 'ปี ' + year;
+    sel.appendChild(opt);
+    // เรียงปีใหม่จากมากไปน้อย
+    const opts = [...sel.options].sort((a, b) => b.value - a.value);
+    sel.innerHTML = ''; opts.forEach(o => sel.appendChild(o));
+  }
+  sel.value = year;
+  loadYear(year);
+});
+
+// ===== เริ่มทำงาน =====
+buildHeader();
+buildBody();
+buildFooter();
+loadAvailableYears();
+</script>
+</body>
+</html>
