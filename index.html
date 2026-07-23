@@ -491,43 +491,46 @@ document.getElementById('yearSelect').addEventListener('change', (e) => loadMont
 /* ============ แท็บแผนผลิต (เทียบแผน vs จริง) ============ */
 async function loadPlan(year) {
   currentYear = year;
+
+  // "ทำล่าสุด" ยังอ้างอิงวันที่ล่าสุดที่มีการบันทึกรายวันไว้ (เพื่อดูเป็นข้อมูลอ้างอิงเฉยๆ)
   const first = year + '-01-01', last = year + '-12-31';
   let rows = [];
-  try { rows = await supaFetch(TABLE + '?prod_date=gte.' + first + '&prod_date=lte.' + last + '&select=prod_date,qty'); }
+  try { rows = await supaFetch(TABLE + '?prod_date=gte.' + first + '&prod_date=lte.' + last + '&select=prod_date'); }
   catch (e) { console.error(e); }
-
-  const monthActual = {}, monthLatest = {};
+  const monthLatest = {};
   (rows || []).forEach(r => {
     const month = parseInt(r.prod_date.slice(5,7), 10);
-    monthActual[month] = (monthActual[month] || 0) + (parseFloat(r.qty) || 0);
     if (!monthLatest[month] || r.prod_date > monthLatest[month]) monthLatest[month] = r.prod_date;
   });
 
   let planRows = [];
-  try { planRows = await supaFetch('production_plan?year=eq.' + year + '&select=month,target_liters'); }
+  try { planRows = await supaFetch('production_plan?year=eq.' + year + '&select=month,target_liters,actual_liters'); }
   catch (e) { console.error(e); }
-  const planMap = {}; (planRows || []).forEach(r => { planMap[r.month] = parseFloat(r.target_liters) || 0; });
+  const planMap = {};
+  (planRows || []).forEach(r => {
+    planMap[r.month] = { target: parseFloat(r.target_liters) || 0, actual: parseFloat(r.actual_liters) || 0 };
+  });
 
   const tbody = document.getElementById('planBody');
   tbody.innerHTML = '';
   let sumPlan = 0, sumActual = 0;
   for (let month = 1; month <= 12; month++) {
-    const plan = planMap[month] || 0;
-    const actual = monthActual[month] || 0;
+    const plan = (planMap[month] && planMap[month].target) || 0;
+    const actual = (planMap[month] && planMap[month].actual) || 0;
     const pct = plan > 0 ? ((actual / plan) * 100).toFixed(1) + '%' : '-';
     const latest = monthLatest[month] ? monthLatest[month].split('-').reverse().join('/') : '-';
     sumPlan += plan; sumActual += actual;
 
     const tr = document.createElement('tr');
     tr.innerHTML = '<td>' + month + '</td><td>' + MONTHS[month-1] + '</td>' +
-      '<td><input type="number" min="0" class="qty-input plan-input" data-month="' + month + '" value="' + (plan || '') + '" style="width:110px"></td>' +
-      '<td class="total-cell">' + (actual ? fmt(actual) : '-') + '</td>' +
-      '<td class="bottle-cell">' + (actual ? fmt(calcTray(actual)) : '-') + '</td>' +
+      '<td><input type="number" min="0" class="qty-input plan-target-input" data-month="' + month + '" value="' + (plan || '') + '" style="width:110px"></td>' +
+      '<td><input type="number" min="0" class="qty-input plan-actual-input" data-month="' + month + '" value="' + (actual || '') + '" style="width:110px"></td>' +
+      '<td class="bottle-cell" id="plan-tray-' + month + '">' + (actual ? fmt(calcTray(actual)) : '-') + '</td>' +
       '<td>' + pct + '</td>' +
       '<td>' + latest + '</td>';
     tbody.appendChild(tr);
   }
-  tbody.querySelectorAll('.plan-input').forEach(inp => inp.addEventListener('change', onPlanChange));
+  tbody.querySelectorAll('.plan-target-input, .plan-actual-input').forEach(inp => inp.addEventListener('change', onPlanChange));
 
   const footer = document.getElementById('planFooterRow');
   const pctTotal = sumPlan > 0 ? ((sumActual / sumPlan) * 100).toFixed(1) + '%' : '-';
@@ -537,12 +540,19 @@ async function loadPlan(year) {
 async function onPlanChange(e) {
   const input = e.target;
   const month = parseInt(input.dataset.month, 10);
-  const target = parseFloat(input.value) || 0;
+  const row = input.closest('tr');
+  const target = parseFloat(row.querySelector('.plan-target-input').value) || 0;
+  const actual = parseFloat(row.querySelector('.plan-actual-input').value) || 0;
+
+  // อัปเดตคอลัมน์ tray ที่ได้จริงให้ทันที (คำนวณจากลิตรที่กรอก)
+  const trayCell = document.getElementById('plan-tray-' + month);
+  if (trayCell) trayCell.textContent = actual ? fmt(calcTray(actual)) : '-';
+
   showSaveIndicator('saving');
   try {
     await supaFetch('production_plan?on_conflict=year,month', {
       method: 'POST', prefer: 'resolution=merge-duplicates',
-      body: JSON.stringify({ year: currentYear, month, target_liters: target })
+      body: JSON.stringify({ year: currentYear, month, target_liters: target, actual_liters: actual })
     });
     showSaveIndicator('saved');
     await loadPlan(currentYear);
