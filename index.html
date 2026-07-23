@@ -144,8 +144,8 @@
                     </div>         
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped align-middle text-center">
-                            <thead id="dailyHead"></thead>
-                            <tbody id="dailyBody"></tbody>
+                            <thead id="dailyFormHead"></thead>
+                            <tbody id="dailyFormBody"></tbody>
                         </table>
                     </div>
                     <button id="saveDayBtn" type="button" class="btn btn-primary">
@@ -279,8 +279,8 @@ function buildDailyForm() {
      '<label>' + p + '</label>' +'<input type="number" min="0" id="actual_' + p + '">';
     form.insertBefore(div, saveBtn);
   });*/
-const head = document.getElementById("dailyHead");
-const body = document.getElementById("dailyBody");
+const head = document.getElementById("dailyFormHead");
+const body = document.getElementById("dailyFormBody");
 // ========================
 // Header
 // ========================
