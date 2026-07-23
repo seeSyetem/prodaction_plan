@@ -108,7 +108,7 @@
   <!-- ===== แท็บรายวัน ===== -->
   <section class="panel active" id="panelDaily">
     <div class="daily-form" id="dailyForm">
-      <div class="field">
+      <!-- <div class="field">
         <label>วันที่ผลิต</label>
         <input type="date" id="entryDate">
       </div>
@@ -116,13 +116,29 @@
         <label>ลิตรตามแผน</label>
         <input type="number" min="0" id="entryTarget" class="plan-field">
       </div>
-      <!-- ช่องกรอกจำนวนต่อผลิตภัณฑ์ ถูกเติมด้วย JS -->
+      ช่องกรอกจำนวนต่อผลิตภัณฑ์ ถูกเติมด้วย JS
       <div class="field">
         <label>ลิตรที่ได้จริง</label>
         <input type="number" min="0" id="actualTarget" class="plan-field">
       </div>
-      <!-- ช่องกรอกจำนวนต่อผลิตภัณฑ์ ถูกเติมด้วย JS -->
-      <button id="saveDayBtn" type="button"><i class="fas fa-floppy-disk"></i> บันทึกวันนี้</button>
+      <!-- ช่องกรอกจำนวนต่อผลิตภัณฑ์ ถูกเติมด้วย JS
+      <button id="saveDayBtn" type="button"><i class="fas fa-floppy-disk"></i> บันทึกวันนี้</button> -->
+                    <div class="mb-3">
+                        <label class="form-label">วันที่ผลิต</label>
+                        <input type="date" id="entryDate" class="form-control">
+                    </div>
+                
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped align-middle text-center">
+                            <thead id="dailyHead"></thead>
+                            <tbody id="dailyBody"></tbody>
+                        </table>
+                    </div>
+                
+                    <button id="saveDayBtn" type="button" class="btn btn-primary">
+                        <i class="fas fa-floppy-disk"></i>
+                        บันทึกวันนี้
+                    </button>
     </div>
    
     <div class="toolbar">
