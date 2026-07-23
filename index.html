@@ -307,7 +307,6 @@ PRODUCTS.forEach(product => {actualRow += `<td><input type="number" min="0" clas
 });
 actualRow += `</tr>`;
 body.innerHTML = planRow + actualRow;
-form.insertBefore(div, saveBtn);
 }
 
 function buildDailyHeader() {
@@ -463,12 +462,14 @@ async function saveTodayEntry() {
     }
     showSaveIndicator("saving");
     try {
-        // บันทึกข้อมูลแต่ละสินค้า
+        // บันทึกยอดที่ได้จริงแต่ละสินค้า -> daily_production (qty)
+        let planSum = 0;
         for (const p of PRODUCTS) {
             const planInput = document.getElementById(`plan_${p}`);
             const actualInput = document.getElementById(`actual_${p}`);
             const planQty = parseFloat(planInput?.value) || 0;
             const actualQty = parseFloat(actualInput?.value) || 0;
+            planSum += planQty;
             // ถ้าไม่ได้กรอกเลย ข้าม
             if (planQty === 0 && actualQty === 0) continue;
             await supaFetch(TABLE + "?on_conflict=prod_date,product", {
@@ -477,8 +478,18 @@ async function saveTodayEntry() {
                 body: JSON.stringify({
                     prod_date: date,
                     product: p,
-                    plan_qty: planQty,
-                    actual_qty: actualQty
+                    qty: actualQty
+                })
+            });
+        }
+        // บันทึกลิตรตามแผนรวม -> daily_plan (target_liters)
+        if (planSum > 0) {
+            await supaFetch(PLAN_TABLE + "?on_conflict=prod_date", {
+                method: "POST",
+                prefer: "resolution=merge-duplicates",
+                body: JSON.stringify({
+                    prod_date: date,
+                    target_liters: planSum
                 })
             });
         }
