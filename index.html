@@ -102,6 +102,7 @@
   <div class="tabs">
     <button id="tabBtnDaily" class="active">รายวัน</button>
     <button id="tabBtnMonthly">รายเดือน</button>
+    <button id="tabBtnPlan">แผนผลิต</button>
   </div>
 </header>
 
@@ -125,7 +126,7 @@
 
     <div class="table-wrap">
       <table>
-        <thead><tr id="dailyHeaderRow"><th>#</th><th>วันที่</th></tr></thead>
+        <thead><tr id="dailyHeaderRow"><th>#</th><th>วันที่</th><th>ลิตรที่ได้จริง</th><th>tray ที่ได้จริง</th></tr></thead>
         <tbody id="dailyBody"></tbody>
         <tfoot><tr id="dailyFooterRow"></tr></tfoot>
       </table>
@@ -141,12 +142,35 @@
     <div class="cards" id="summaryCards"></div>
     <div class="table-wrap">
       <table>
-        <thead><tr id="monthlyHeaderRow"><th>#</th><th>เดือน</th></tr></thead>
+        <thead><tr id="monthlyHeaderRow"><th>#</th><th>เดือน</th><th>ลิตรที่ได้จริง</th><th>tray ที่ได้จริง</th></tr></thead>
         <tbody id="monthlyBody"></tbody>
         <tfoot><tr id="monthlyFooterRow"></tr></tfoot>
       </table>
     </div>
     <p class="hint"><i class="fas fa-circle-info"></i> ตารางนี้รวมยอดจากข้อมูลรายวันให้อัตโนมัติ (อ่านอย่างเดียว) &nbsp;|&nbsp; สูตร: ขวด/เดือน = รวมเดือน ÷ 0.31</p>
+  </section>
+  <!-- ===== แท็บแผนผลิต (เทียบแผน vs จริง) ===== -->
+  <section class="panel" id="panelPlan">
+    <div class="toolbar">
+      <select id="planYearSelect"></select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>เดือน</th>
+            <th>แผนผลิต (ลิตร)</th>
+            <th>ลิตรที่ได้จริง</th>
+            <th>tray ที่ได้จริง</th>
+            <th>% สำเร็จ</th>
+            <th>ทำล่าสุด</th>
+          </tr>
+        </thead>
+        <tbody id="planBody"></tbody>
+        <tfoot><tr id="planFooterRow"></tr></tfoot>
+      </table>
+    </div>
+    <p class="hint"><i class="fas fa-circle-info"></i> กรอก "แผนผลิต (ลิตร)" ได้โดยตรงในตาราง ส่วน "ลิตรที่ได้จริง"/"tray ที่ได้จริง"/"ทำล่าสุด" คำนวณจากข้อมูลรายวันอัตโนมัติ &nbsp;|&nbsp; สูตร: tray ที่ได้จริง = ลิตรที่ได้จริง ÷ 0.315 ÷ 24</p>
   </section>
 
 </main>
@@ -157,7 +181,9 @@
 const SUPABASE_URL = "https://yhgrkgbarutrzhignowg.supabase.co";
 const SUPABASE_KEY = "sb_publishable_P3YwKv-rIX6sEwBAoqJQHg_9mu4cM8j";
 const TABLE = "daily_production";
-const BOTTLE_SIZE = 0.31; // ลิตรต่อขวด
+const BOTTLE_SIZE = 0.31; // ลิตรต่อขวด (ใช้กับคอลัมน์ ขวด/วัน, ขวด/เดือน เดิม)
+const TRAY_BOTTLE_SIZE = 0.315; // ลิตรต่อขวด สำหรับคำนวณ "tray ที่ได้จริง" โดยเฉพาะ
+function calcTray(liters) { return (Number(liters) || 0) / TRAY_BOTTLE_SIZE / 24; }
 
 const PRODUCTS = ["OR","LOW","BN","CN","MG","CM","BK","GT"];
 const MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
@@ -209,10 +235,14 @@ document.getElementById('tabBtnMonthly').addEventListener('click', () => switchT
 function switchTab(name) {
   document.getElementById('panelDaily').classList.toggle('active', name === 'daily');
   document.getElementById('panelMonthly').classList.toggle('active', name === 'monthly');
+  document.getElementById('panelPlan').classList.toggle('active', name === 'plan');
   document.getElementById('tabBtnDaily').classList.toggle('active', name === 'daily');
   document.getElementById('tabBtnMonthly').classList.toggle('active', name === 'monthly');
+  document.getElementById('tabBtnPlan').classList.toggle('active', name === 'plan');
   if (name === 'monthly') loadMonthly(currentYear);
+  if (name === 'plan') loadPlan(currentYear);
 }
+document.getElementById('tabBtnPlan').addEventListener('click', () => switchTab('plan'));
 
 /* ============ แท็บรายวัน ============ */
 function buildDailyForm() {
@@ -291,7 +321,10 @@ function renderDailyTable() {
       cellsHtml += '<td><input type="number" min="0" class="qty-input" value="' + (v || '') + '" data-date="' + row.date + '" data-product="' + p + '"></td>';
     });
     grandTotal += rowTotal;
-    tr.innerHTML = '<td>' + (idx+1) + '</td><td>' + dateLabel + '</td>' + cellsHtml +
+    tr.innerHTML = '<td>' + (idx+1) + '</td><td>' + dateLabel + '</td>' +
+      '<td class="total-cell">' + (rowTotal ? fmt(rowTotal) : '-') + '</td>' +
+      '<td class="bottle-cell">' + (rowTotal ? fmt(calcTray(rowTotal)) : '-') + '</td>' +
+      cellsHtml +
       '<td class="total-cell">' + (rowTotal ? fmt(rowTotal) : '-') + '</td>' +
       '<td class="bottle-cell">' + (rowTotal ? fmt(rowTotal / BOTTLE_SIZE) : '-') + '</td>' +
       '<td><button class="del-btn" data-date="' + row.date + '"><i class="fas fa-trash"></i></button></td>';
@@ -302,7 +335,9 @@ function renderDailyTable() {
   tbody.querySelectorAll('.del-btn').forEach(btn => btn.addEventListener('click', onDeleteDay));
 
   const footer = document.getElementById('dailyFooterRow');
-  footer.innerHTML = '<td>#</td><td>รวม</td>';
+  footer.innerHTML = '<td>#</td><td>รวม</td>' +
+    '<td>' + fmt(grandTotal) + '</td>' +
+    '<td>' + fmt(calcTray(grandTotal)) + '</td>';
   PRODUCTS.forEach(p => { const td = document.createElement('td'); td.textContent = fmt(productSums[p]); footer.appendChild(td); });
   const tdT = document.createElement('td'); tdT.textContent = fmt(grandTotal); footer.appendChild(tdT);
   const tdB = document.createElement('td'); tdB.textContent = fmt(grandTotal / BOTTLE_SIZE); footer.appendChild(tdB);
@@ -409,14 +444,19 @@ async function loadMonthly(year) {
     });
     grandTotal += monthTotal;
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + month + '</td><td>' + MONTHS[month-1] + '</td>' + cells +
+    tr.innerHTML = '<td>' + month + '</td><td>' + MONTHS[month-1] + '</td>' +
+      '<td class="total-cell">' + (monthTotal ? fmt(monthTotal) : '-') + '</td>' +
+      '<td class="bottle-cell">' + (monthTotal ? fmt(calcTray(monthTotal)) : '-') + '</td>' +
+      cells +
       '<td class="total-cell">' + (monthTotal ? fmt(monthTotal) : '-') + '</td>' +
       '<td class="bottle-cell">' + (monthTotal ? fmt(monthTotal / BOTTLE_SIZE) : '-') + '</td>';
     tbody.appendChild(tr);
   }
 
   const footer = document.getElementById('monthlyFooterRow');
-  footer.innerHTML = '<td>#</td><td>รวม</td>';
+  footer.innerHTML = '<td>#</td><td>รวม</td>' +
+    '<td>' + fmt(grandTotal) + '</td>' +
+    '<td>' + fmt(calcTray(grandTotal)) + '</td>';
   PRODUCTS.forEach(p => { const td = document.createElement('td'); td.textContent = fmt(productSums[p]); footer.appendChild(td); });
   const tdT = document.createElement('td'); tdT.textContent = fmt(grandTotal); footer.appendChild(tdT);
   const tdB = document.createElement('td'); tdB.textContent = fmt(grandTotal / BOTTLE_SIZE); footer.appendChild(tdB);
@@ -448,6 +488,75 @@ async function populateYearSelect() {
 }
 document.getElementById('yearSelect').addEventListener('change', (e) => loadMonthly(parseInt(e.target.value,10)));
 
+/* ============ แท็บแผนผลิต (เทียบแผน vs จริง) ============ */
+async function loadPlan(year) {
+  currentYear = year;
+  const first = year + '-01-01', last = year + '-12-31';
+  let rows = [];
+  try { rows = await supaFetch(TABLE + '?prod_date=gte.' + first + '&prod_date=lte.' + last + '&select=prod_date,qty'); }
+  catch (e) { console.error(e); }
+
+  const monthActual = {}, monthLatest = {};
+  (rows || []).forEach(r => {
+    const month = parseInt(r.prod_date.slice(5,7), 10);
+    monthActual[month] = (monthActual[month] || 0) + (parseFloat(r.qty) || 0);
+    if (!monthLatest[month] || r.prod_date > monthLatest[month]) monthLatest[month] = r.prod_date;
+  });
+
+  let planRows = [];
+  try { planRows = await supaFetch('production_plan?year=eq.' + year + '&select=month,target_liters'); }
+  catch (e) { console.error(e); }
+  const planMap = {}; (planRows || []).forEach(r => { planMap[r.month] = parseFloat(r.target_liters) || 0; });
+
+  const tbody = document.getElementById('planBody');
+  tbody.innerHTML = '';
+  let sumPlan = 0, sumActual = 0;
+  for (let month = 1; month <= 12; month++) {
+    const plan = planMap[month] || 0;
+    const actual = monthActual[month] || 0;
+    const pct = plan > 0 ? ((actual / plan) * 100).toFixed(1) + '%' : '-';
+    const latest = monthLatest[month] ? monthLatest[month].split('-').reverse().join('/') : '-';
+    sumPlan += plan; sumActual += actual;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + month + '</td><td>' + MONTHS[month-1] + '</td>' +
+      '<td><input type="number" min="0" class="qty-input plan-input" data-month="' + month + '" value="' + (plan || '') + '" style="width:110px"></td>' +
+      '<td class="total-cell">' + (actual ? fmt(actual) : '-') + '</td>' +
+      '<td class="bottle-cell">' + (actual ? fmt(calcTray(actual)) : '-') + '</td>' +
+      '<td>' + pct + '</td>' +
+      '<td>' + latest + '</td>';
+    tbody.appendChild(tr);
+  }
+  tbody.querySelectorAll('.plan-input').forEach(inp => inp.addEventListener('change', onPlanChange));
+
+  const footer = document.getElementById('planFooterRow');
+  const pctTotal = sumPlan > 0 ? ((sumActual / sumPlan) * 100).toFixed(1) + '%' : '-';
+  footer.innerHTML = '<td>#</td><td>รวม</td><td>' + fmt(sumPlan) + '</td><td>' + fmt(sumActual) + '</td><td>' + fmt(calcTray(sumActual)) + '</td><td>' + pctTotal + '</td><td></td>';
+}
+
+async function onPlanChange(e) {
+  const input = e.target;
+  const month = parseInt(input.dataset.month, 10);
+  const target = parseFloat(input.value) || 0;
+  showSaveIndicator('saving');
+  try {
+    await supaFetch('production_plan?on_conflict=year,month', {
+      method: 'POST', prefer: 'resolution=merge-duplicates',
+      body: JSON.stringify({ year: currentYear, month, target_liters: target })
+    });
+    showSaveIndicator('saved');
+    await loadPlan(currentYear);
+  } catch (err) { console.error(err); showSaveIndicator('error'); }
+}
+
+function populatePlanYearSelect() {
+  const sel = document.getElementById('planYearSelect');
+  const mainSel = document.getElementById('yearSelect');
+  sel.innerHTML = mainSel.innerHTML;
+  sel.value = mainSel.value;
+}
+document.getElementById('planYearSelect').addEventListener('change', (e) => loadPlan(parseInt(e.target.value, 10)));
+
 /* ============ เริ่มทำงาน ============ */
 (async function init() {
   buildDailyForm();
@@ -456,6 +565,7 @@ document.getElementById('yearSelect').addEventListener('change', (e) => loadMont
   await populateMonthSelect();
   await loadDaily(currentYM);
   await populateYearSelect();
+  populatePlanYearSelect();
 })();
 </script>
 </body>
