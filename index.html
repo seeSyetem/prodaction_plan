@@ -149,28 +149,46 @@
     </div>
     <p class="hint"><i class="fas fa-circle-info"></i> ตารางนี้รวมยอดจากข้อมูลรายวันให้อัตโนมัติ (อ่านอย่างเดียว) &nbsp;|&nbsp; สูตร: ขวด/เดือน = รวมเดือน ÷ 0.31</p>
   </section>
-  <!-- ===== แท็บแผนผลิต (เทียบแผน vs จริง) ===== -->
+  <!-- ===== แท็บแผนผลิต (กรอกรายวัน: แผนผลิต vs ลิตรที่ได้จริง) ===== -->
   <section class="panel" id="panelPlan">
-    <div class="toolbar">
-      <select id="planYearSelect"></select>
+    <div class="daily-form" id="planForm">
+      <div class="field">
+        <label>วันที่</label>
+        <input type="date" id="planEntryDate">
+      </div>
+      <div class="field">
+        <label>แผนผลิต (ลิตร)</label>
+        <input type="number" min="0" id="planEntryTarget">
+      </div>
+      <div class="field">
+        <label>ลิตรที่ได้จริง</label>
+        <input type="number" min="0" id="planEntryActual">
+      </div>
+      <button id="savePlanDayBtn" type="button"><i class="fas fa-floppy-disk"></i> บันทึกวันนี้</button>
     </div>
+
+    <div class="toolbar">
+      <select id="planMonthSelect"></select>
+      <span class="hint" style="margin:0">แสดงรายการที่บันทึกไว้ในเดือนนี้</span>
+    </div>
+
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>#</th><th>เดือน</th>
+            <th>#</th><th>วันที่</th>
             <th>แผนผลิต (ลิตร)</th>
             <th>ลิตรที่ได้จริง</th>
             <th>tray ที่ได้จริง</th>
             <th>% สำเร็จ</th>
-            <th>ทำล่าสุด</th>
+            <th></th>
           </tr>
         </thead>
         <tbody id="planBody"></tbody>
         <tfoot><tr id="planFooterRow"></tr></tfoot>
       </table>
     </div>
-    <p class="hint"><i class="fas fa-circle-info"></i> กรอก "แผนผลิต (ลิตร)" ได้โดยตรงในตาราง ส่วน "ลิตรที่ได้จริง"/"tray ที่ได้จริง"/"ทำล่าสุด" คำนวณจากข้อมูลรายวันอัตโนมัติ &nbsp;|&nbsp; สูตร: tray ที่ได้จริง = ลิตรที่ได้จริง ÷ 0.315 ÷ 24</p>
+    <p class="hint"><i class="fas fa-circle-info"></i> แก้ไขตัวเลขในตารางแล้วกดออกจากช่องเพื่อบันทึกอัตโนมัติ &nbsp;|&nbsp; สูตร: tray ที่ได้จริง = ลิตรที่ได้จริง ÷ 0.315 ÷ 24</p>
   </section>
 
 </main>
@@ -240,7 +258,7 @@ function switchTab(name) {
   document.getElementById('tabBtnMonthly').classList.toggle('active', name === 'monthly');
   document.getElementById('tabBtnPlan').classList.toggle('active', name === 'plan');
   if (name === 'monthly') loadMonthly(currentYear);
-  if (name === 'plan') loadPlan(currentYear);
+  if (name === 'plan') loadPlan(currentPlanYM);
 }
 document.getElementById('tabBtnPlan').addEventListener('click', () => switchTab('plan'));
 
@@ -488,84 +506,139 @@ async function populateYearSelect() {
 }
 document.getElementById('yearSelect').addEventListener('change', (e) => loadMonthly(parseInt(e.target.value,10)));
 
-/* ============ แท็บแผนผลิต (เทียบแผน vs จริง) ============ */
-async function loadPlan(year) {
-  currentYear = year;
+/* ============ แท็บแผนผลิต (กรอกรายวัน: แผนผลิต vs ลิตรที่ได้จริง) ============ */
+const PLAN_TABLE = 'daily_plan';
+let currentPlanYM = null;
+let planRows = [];
 
-  // "ทำล่าสุด" ยังอ้างอิงวันที่ล่าสุดที่มีการบันทึกรายวันไว้ (เพื่อดูเป็นข้อมูลอ้างอิงเฉยๆ)
-  const first = year + '-01-01', last = year + '-12-31';
-  let rows = [];
-  try { rows = await supaFetch(TABLE + '?prod_date=gte.' + first + '&prod_date=lte.' + last + '&select=prod_date'); }
-  catch (e) { console.error(e); }
-  const monthLatest = {};
-  (rows || []).forEach(r => {
-    const month = parseInt(r.prod_date.slice(5,7), 10);
-    if (!monthLatest[month] || r.prod_date > monthLatest[month]) monthLatest[month] = r.prod_date;
+async function populatePlanMonthSelect() {
+  let months = new Set();
+  try {
+    const rows = await supaFetch(PLAN_TABLE + '?select=prod_date');
+    (rows || []).forEach(r => months.add(r.prod_date.slice(0,7)));
+  } catch (e) { console.error(e); }
+  const now = new Date();
+  months.add(now.getFullYear() + '-' + pad2(now.getMonth()+1));
+  const list = [...months].sort().reverse();
+
+  const sel = document.getElementById('planMonthSelect');
+  sel.innerHTML = '';
+  list.forEach(ym => {
+    const [y,m] = ym.split('-');
+    const opt = document.createElement('option'); opt.value = ym;
+    opt.textContent = MONTHS[parseInt(m,10)-1] + ' ' + y;
+    sel.appendChild(opt);
   });
-
-  let planRows = [];
-  try { planRows = await supaFetch('production_plan?year=eq.' + year + '&select=month,target_liters,actual_liters'); }
-  catch (e) { console.error(e); }
-  const planMap = {};
-  (planRows || []).forEach(r => {
-    planMap[r.month] = { target: parseFloat(r.target_liters) || 0, actual: parseFloat(r.actual_liters) || 0 };
-  });
-
-  const tbody = document.getElementById('planBody');
-  tbody.innerHTML = '';
-  let sumPlan = 0, sumActual = 0;
-  for (let month = 1; month <= 12; month++) {
-    const plan = (planMap[month] && planMap[month].target) || 0;
-    const actual = (planMap[month] && planMap[month].actual) || 0;
-    const pct = plan > 0 ? ((actual / plan) * 100).toFixed(1) + '%' : '-';
-    const latest = monthLatest[month] ? monthLatest[month].split('-').reverse().join('/') : '-';
-    sumPlan += plan; sumActual += actual;
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + month + '</td><td>' + MONTHS[month-1] + '</td>' +
-      '<td><input type="number" min="0" class="qty-input plan-target-input" data-month="' + month + '" value="' + (plan || '') + '" style="width:110px"></td>' +
-      '<td><input type="number" min="0" class="qty-input plan-actual-input" data-month="' + month + '" value="' + (actual || '') + '" style="width:110px"></td>' +
-      '<td class="bottle-cell" id="plan-tray-' + month + '">' + (actual ? fmt(calcTray(actual)) : '-') + '</td>' +
-      '<td>' + pct + '</td>' +
-      '<td>' + latest + '</td>';
-    tbody.appendChild(tr);
-  }
-  tbody.querySelectorAll('.plan-target-input, .plan-actual-input').forEach(inp => inp.addEventListener('change', onPlanChange));
-
-  const footer = document.getElementById('planFooterRow');
-  const pctTotal = sumPlan > 0 ? ((sumActual / sumPlan) * 100).toFixed(1) + '%' : '-';
-  footer.innerHTML = '<td>#</td><td>รวม</td><td>' + fmt(sumPlan) + '</td><td>' + fmt(sumActual) + '</td><td>' + fmt(calcTray(sumActual)) + '</td><td>' + pctTotal + '</td><td></td>';
+  currentPlanYM = list[0];
+  sel.value = currentPlanYM;
+  document.getElementById('planEntryDate').value = now.toISOString().slice(0,10);
 }
 
-async function onPlanChange(e) {
+async function loadPlan(ym) {
+  currentPlanYM = ym;
+  const [y,m] = ym.split('-').map(Number);
+  const first = ym + '-01';
+  const last = ym + '-' + pad2(daysInMonth(y,m));
+  let rows = [];
+  try {
+    rows = await supaFetch(PLAN_TABLE + '?prod_date=gte.' + first + '&prod_date=lte.' + last + '&select=prod_date,target_liters,actual_liters&order=prod_date.asc');
+  } catch (e) { console.error(e); }
+  planRows = (rows || []).map(r => ({
+    date: r.prod_date,
+    target: parseFloat(r.target_liters) || 0,
+    actual: parseFloat(r.actual_liters) || 0
+  }));
+  renderPlanTable();
+}
+
+function renderPlanTable() {
+  const tbody = document.getElementById('planBody');
+  tbody.innerHTML = '';
+  let sumTarget = 0, sumActual = 0;
+
+  planRows.forEach((row, idx) => {
+    const dateLabel = row.date.split('-').reverse().join('/');
+    const pct = row.target > 0 ? ((row.actual / row.target) * 100).toFixed(1) + '%' : '-';
+    sumTarget += row.target; sumActual += row.actual;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + (idx+1) + '</td><td>' + dateLabel + '</td>' +
+      '<td><input type="number" min="0" class="qty-input plan-target-input" data-date="' + row.date + '" value="' + (row.target || '') + '"></td>' +
+      '<td><input type="number" min="0" class="qty-input plan-actual-input" data-date="' + row.date + '" value="' + (row.actual || '') + '"></td>' +
+      '<td class="bottle-cell">' + (row.actual ? fmt(calcTray(row.actual)) : '-') + '</td>' +
+      '<td>' + pct + '</td>' +
+      '<td><button class="del-btn" data-date="' + row.date + '"><i class="fas fa-trash"></i></button></td>';
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('.plan-target-input, .plan-actual-input').forEach(inp => inp.addEventListener('change', onPlanCellChange));
+  tbody.querySelectorAll('.del-btn').forEach(btn => btn.addEventListener('click', onDeletePlanDay));
+
+  const footer = document.getElementById('planFooterRow');
+  const pctTotal = sumTarget > 0 ? ((sumActual / sumTarget) * 100).toFixed(1) + '%' : '-';
+  footer.innerHTML = '<td>#</td><td>รวม</td><td>' + fmt(sumTarget) + '</td><td>' + fmt(sumActual) + '</td><td>' + fmt(calcTray(sumActual)) + '</td><td>' + pctTotal + '</td><td></td>';
+}
+
+async function onPlanCellChange(e) {
   const input = e.target;
-  const month = parseInt(input.dataset.month, 10);
+  const date = input.dataset.date;
   const row = input.closest('tr');
   const target = parseFloat(row.querySelector('.plan-target-input').value) || 0;
   const actual = parseFloat(row.querySelector('.plan-actual-input').value) || 0;
-
-  // อัปเดตคอลัมน์ tray ที่ได้จริงให้ทันที (คำนวณจากลิตรที่กรอก)
-  const trayCell = document.getElementById('plan-tray-' + month);
-  if (trayCell) trayCell.textContent = actual ? fmt(calcTray(actual)) : '-';
-
   showSaveIndicator('saving');
   try {
-    await supaFetch('production_plan?on_conflict=year,month', {
+    await supaFetch(PLAN_TABLE + '?on_conflict=prod_date', {
       method: 'POST', prefer: 'resolution=merge-duplicates',
-      body: JSON.stringify({ year: currentYear, month, target_liters: target, actual_liters: actual })
+      body: JSON.stringify({ prod_date: date, target_liters: target, actual_liters: actual })
     });
     showSaveIndicator('saved');
-    await loadPlan(currentYear);
+    await loadPlan(currentPlanYM);
   } catch (err) { console.error(err); showSaveIndicator('error'); }
 }
 
-function populatePlanYearSelect() {
-  const sel = document.getElementById('planYearSelect');
-  const mainSel = document.getElementById('yearSelect');
-  sel.innerHTML = mainSel.innerHTML;
-  sel.value = mainSel.value;
+async function onDeletePlanDay(e) {
+  const btn = e.target.closest('button');
+  const date = btn.dataset.date;
+  if (!confirm('ลบข้อมูลวันที่ ' + date.split('-').reverse().join('/') + ' ทั้งหมดใช่ไหม?')) return;
+  showSaveIndicator('saving');
+  try {
+    await supaFetch(PLAN_TABLE + '?prod_date=eq.' + date, { method: 'DELETE' });
+    showSaveIndicator('saved');
+    await loadPlan(currentPlanYM);
+  } catch (err) { console.error(err); showSaveIndicator('error'); }
 }
-document.getElementById('planYearSelect').addEventListener('change', (e) => loadPlan(parseInt(e.target.value, 10)));
+
+async function savePlanTodayEntry() {
+  const date = document.getElementById('planEntryDate').value;
+  if (!date) { alert('กรุณาเลือกวันที่ก่อน'); return; }
+  const target = parseFloat(document.getElementById('planEntryTarget').value) || 0;
+  const actual = parseFloat(document.getElementById('planEntryActual').value) || 0;
+  showSaveIndicator('saving');
+  try {
+    await supaFetch(PLAN_TABLE + '?on_conflict=prod_date', {
+      method: 'POST', prefer: 'resolution=merge-duplicates',
+      body: JSON.stringify({ prod_date: date, target_liters: target, actual_liters: actual })
+    });
+    showSaveIndicator('saved');
+    document.getElementById('planEntryTarget').value = '';
+    document.getElementById('planEntryActual').value = '';
+
+    const ym = date.slice(0,7);
+    const sel = document.getElementById('planMonthSelect');
+    if (![...sel.options].some(o => o.value === ym)) {
+      const opt = document.createElement('option'); const [y,mo] = ym.split('-');
+      opt.value = ym; opt.textContent = MONTHS[parseInt(mo,10)-1] + ' ' + y;
+      sel.appendChild(opt);
+      const opts = [...sel.options].sort((a,b) => b.value.localeCompare(a.value));
+      sel.innerHTML = ''; opts.forEach(o => sel.appendChild(o));
+    }
+    sel.value = ym;
+    await loadPlan(ym);
+  } catch (err) { console.error(err); showSaveIndicator('error'); }
+}
+
+document.getElementById('savePlanDayBtn').addEventListener('click', savePlanTodayEntry);
+document.getElementById('planMonthSelect').addEventListener('change', (e) => loadPlan(e.target.value));
 
 /* ============ เริ่มทำงาน ============ */
 (async function init() {
@@ -575,7 +648,8 @@ document.getElementById('planYearSelect').addEventListener('change', (e) => load
   await populateMonthSelect();
   await loadDaily(currentYM);
   await populateYearSelect();
-  populatePlanYearSelect();
+  await populatePlanMonthSelect();
+  await loadPlan(currentPlanYM);
 })();
 </script>
 </body>
