@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ยอดผลิตรายเดือน</title>
+<title>ยอดผลิต - รายวัน/รายเดือน</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -12,110 +12,143 @@
     --primary-dark:#0a4d78; --sidebar-bg:#003f66; --accent:#f2b705;
     --accent-light:#fff3cf; --bg-body:#eaf4fb; --text-main:#1b2b3a;
     --text-muted:#6f8fa8; --border:#cfe3f2; --card:#ffffff;
-    --success:#16a34a; --success-light:#dcfce7;
+    --success:#16a34a; --danger:#dc2626;
   }
   *{box-sizing:border-box}
-  body{
-    margin:0; background:var(--bg-body); font-family:'Sarabun',sans-serif;
-    color:var(--text-main); font-size:14px; -webkit-font-smoothing:antialiased;
-  }
+  body{margin:0; background:var(--bg-body); font-family:'Sarabun',sans-serif; color:var(--text-main); font-size:14px}
   header{
-    background:var(--sidebar-bg); color:#fff; padding:18px 24px;
+    background:var(--sidebar-bg); color:#fff; padding:16px 24px;
     display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
   }
   header h1{font-size:17px; font-weight:700; margin:0; display:flex; align-items:center; gap:10px}
   header h1 i{color:var(--accent)}
-  .year-picker{display:flex; align-items:center; gap:8px}
-  .year-picker select, .year-picker button{
-    font-family:inherit; font-size:14px; border-radius:8px; border:none; padding:8px 12px; cursor:pointer;
+  .tabs{display:flex; gap:6px}
+  .tabs button{
+    font-family:inherit; font-size:14px; font-weight:600; padding:8px 16px; border-radius:8px;
+    border:none; cursor:pointer; background:rgba(255,255,255,.12); color:#fff;
   }
-  .year-picker select{background:#fff; color:var(--text-main)}
-  .year-picker button{background:var(--accent); color:var(--primary-dark); font-weight:700}
-  .year-picker button:hover{filter:brightness(1.05)}
+  .tabs button.active{background:var(--accent); color:var(--primary-dark)}
 
   main{max-width:1200px; margin:0 auto; padding:22px 18px 60px}
+  .panel{display:none}
+  .panel.active{display:block}
 
-  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:20px}
-  .card{
-    background:var(--card); border:1px solid var(--border); border-radius:12px;
-    padding:16px 18px; box-shadow:0 2px 8px rgba(15,23,42,.04);
+  .toolbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px}
+  .toolbar select, .toolbar input[type=date]{
+    font-family:inherit; font-size:14px; padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:#fff;
   }
+  .toolbar button{
+    font-family:inherit; font-size:14px; font-weight:700; padding:8px 14px; border-radius:8px; border:none;
+    background:var(--accent); color:var(--primary-dark); cursor:pointer;
+  }
+  .toolbar button.secondary{background:var(--primary-dark); color:#fff}
+
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:18px}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 18px; box-shadow:0 2px 8px rgba(15,23,42,.04)}
   .card .label{font-size:12px; color:var(--text-muted); font-weight:600; display:flex; justify-content:space-between; align-items:center}
   .card .value{font-size:26px; font-weight:700; color:var(--primary-dark); margin-top:6px}
-  .card.accent{border-color:var(--accent)}
   .card.accent .value{color:#b8860b}
 
-  .table-wrap{
-    background:var(--card); border:1px solid var(--border); border-radius:12px;
-    overflow-x:auto; box-shadow:0 2px 8px rgba(15,23,42,.04);
+  /* ฟอร์มกรอกรายวัน */
+  .daily-form{
+    background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 18px; margin-bottom:18px;
+    display:flex; flex-wrap:wrap; align-items:flex-end; gap:14px;
   }
+  .daily-form .field{display:flex; flex-direction:column; gap:4px}
+  .daily-form label{font-size:12px; font-weight:600; color:var(--text-muted)}
+  .daily-form input{
+    font-family:inherit; font-size:14px; padding:7px 10px; border-radius:6px; border:1px solid var(--border);
+    width:90px; text-align:right;
+  }
+  .daily-form input[type=date]{width:150px; text-align:left}
+  .daily-form button{
+    font-family:inherit; font-weight:700; padding:9px 18px; border-radius:8px; border:none;
+    background:var(--primary-dark); color:#fff; cursor:pointer; height:38px;
+  }
+
+  .table-wrap{background:var(--card); border:1px solid var(--border); border-radius:12px; overflow-x:auto; box-shadow:0 2px 8px rgba(15,23,42,.04)}
   table{border-collapse:collapse; width:100%; min-width:920px}
-  thead th{
-    background:var(--sidebar-bg); color:#fff; font-size:12px; font-weight:600;
-    padding:10px 8px; text-align:right; white-space:nowrap; position:sticky; top:0;
-  }
+  thead th{background:var(--sidebar-bg); color:#fff; font-size:12px; font-weight:600; padding:10px 8px; text-align:right; white-space:nowrap}
   thead th:first-child, thead th:nth-child(2){text-align:left}
-  tbody td{
-    padding:6px 6px; text-align:right; border-bottom:1px solid var(--border); font-size:13px;
-  }
+  tbody td{padding:6px 6px; text-align:right; border-bottom:1px solid var(--border); font-size:13px}
   tbody td:first-child{text-align:center; color:var(--text-muted); font-size:12px; width:32px}
   tbody td:nth-child(2){text-align:left; font-weight:600; white-space:nowrap}
   tbody tr:hover{background:var(--accent-light)}
-  .qty-input{
-    width:84px; padding:6px 8px; border:1px solid var(--border); border-radius:6px;
-    text-align:right; font-family:inherit; font-size:13px; background:#fffdf9;
-  }
+  .qty-input{width:84px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; text-align:right; font-family:inherit; font-size:13px; background:#fffdf9}
   .qty-input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(242,183,5,.2)}
   td.total-cell{font-weight:700; color:var(--primary-dark); background:#f5fafd}
   td.bottle-cell{color:var(--text-muted)}
-  tfoot td{
-    background:var(--accent-light); font-weight:700; color:var(--primary-dark);
-    padding:10px 6px; border-top:2px solid var(--accent);
-  }
+  tfoot td{background:var(--accent-light); font-weight:700; color:var(--primary-dark); padding:10px 6px; border-top:2px solid var(--accent)}
   tfoot td:first-child, tfoot td:nth-child(2){text-align:left}
   tfoot td:not(:first-child):not(:nth-child(2)){text-align:right}
+  .del-btn{background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px}
+  .del-btn:hover{opacity:.7}
 
   .save-indicator{
-    position:fixed; bottom:20px; right:20px; background:var(--primary-dark); color:#fff;
-    padding:10px 18px; border-radius:30px; font-size:13px; font-weight:600;
-    box-shadow:0 6px 18px rgba(0,0,0,.2); display:flex; align-items:center; gap:8px;
+    position:fixed; bottom:20px; right:20px; background:var(--primary-dark); color:#fff; padding:10px 18px; border-radius:30px;
+    font-size:13px; font-weight:600; box-shadow:0 6px 18px rgba(0,0,0,.2); display:flex; align-items:center; gap:8px;
     opacity:0; transform:translateY(10px); transition:opacity .25s, transform .25s; pointer-events:none;
   }
   .save-indicator.show{opacity:1; transform:translateY(0)}
   .save-indicator.ok{background:var(--success)}
-  .save-indicator i{font-size:12px}
+  .save-indicator.err{background:var(--danger)}
   .hint{font-size:12px; color:var(--text-muted); margin:10px 2px 0}
 </style>
 </head>
 <body>
 
 <header>
-  <h1><i class="fas fa-chart-column"></i> ยอดผลิตรายเดือน</h1>
-  <div class="year-picker">
-    <select id="yearSelect"></select>
-    <button id="addYearBtn" type="button"><i class="fas fa-plus"></i> เพิ่มปี</button>
+  <h1><i class="fas fa-chart-column"></i> ยอดผลิต</h1>
+  <div class="tabs">
+    <button id="tabBtnDaily" class="active">รายวัน</button>
+    <button id="tabBtnMonthly">รายเดือน</button>
   </div>
 </header>
-  
-<main>
-  <div class="cards" id="summaryCards"></div>
 
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr id="headerRow">
-          <th>#</th>
-          <th>เดือน</th>
-          <!-- คอลัมน์ผลิตภัณฑ์ถูกเติมด้วย JS -->
-        </tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-      <tfoot>
-        <tr id="footerRow"></tr>
-      </tfoot>
-    </table>
-  </div>
-  <p class="hint"><i class="fas fa-circle-info"></i> พิมพ์ตัวเลขในช่องแล้วกดออกจากช่อง (Tab/คลิกที่อื่น) ระบบจะบันทึกให้อัตโนมัติ &nbsp;|&nbsp; สูตร: ขวด/เดือน = รวมเดือน ÷ 0.31</p>
+<main>
+
+  <!-- ===== แท็บรายวัน ===== -->
+  <section class="panel active" id="panelDaily">
+    <div class="daily-form" id="dailyForm">
+      <div class="field">
+        <label>วันที่ผลิต</label>
+        <input type="date" id="entryDate">
+      </div>
+      <!-- ช่องกรอกจำนวนต่อผลิตภัณฑ์ ถูกเติมด้วย JS -->
+      <button id="saveDayBtn" type="button"><i class="fas fa-floppy-disk"></i> บันทึกวันนี้</button>
+    </div>
+
+    <div class="toolbar">
+      <select id="dailyMonthSelect"></select>
+      <span class="hint" style="margin:0">แสดงรายการที่บันทึกไว้ในเดือนนี้</span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr id="dailyHeaderRow"><th>#</th><th>วันที่</th></tr></thead>
+        <tbody id="dailyBody"></tbody>
+        <tfoot><tr id="dailyFooterRow"></tr></tfoot>
+      </table>
+    </div>
+    <p class="hint"><i class="fas fa-circle-info"></i> แก้ไขตัวเลขในตารางแล้วกดออกจากช่องเพื่อบันทึกอัตโนมัติ กด 🗑 เพื่อลบข้อมูลวันนั้นทั้งแถว</p>
+  </section>
+
+  <!-- ===== แท็บรายเดือน ===== -->
+  <section class="panel" id="panelMonthly">
+    <div class="toolbar">
+      <select id="yearSelect"></select>
+    </div>
+    <div class="cards" id="summaryCards"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr id="monthlyHeaderRow"><th>#</th><th>เดือน</th></tr></thead>
+        <tbody id="monthlyBody"></tbody>
+        <tfoot><tr id="monthlyFooterRow"></tr></tfoot>
+      </table>
+    </div>
+    <p class="hint"><i class="fas fa-circle-info"></i> ตารางนี้รวมยอดจากข้อมูลรายวันให้อัตโนมัติ (อ่านอย่างเดียว) &nbsp;|&nbsp; สูตร: ขวด/เดือน = รวมเดือน ÷ 0.31</p>
+  </section>
+
 </main>
 
 <div class="save-indicator" id="saveIndicator"><i class="fas fa-circle-notch fa-spin"></i> <span>กำลังบันทึก...</span></div>
@@ -123,15 +156,17 @@
 <script>
 const SUPABASE_URL = "https://yhgrkgbarutrzhignowg.supabase.co";
 const SUPABASE_KEY = "sb_publishable_P3YwKv-rIX6sEwBAoqJQHg_9mu4cM8j";
-const TABLE = "monthly_production";
-const BOTTLE_SIZE = 0.315; // ลิตรต่อขวด
+const TABLE = "daily_production";
+const BOTTLE_SIZE = 0.31; // ลิตรต่อขวด
 
 const PRODUCTS = ["OR","LOW","BN","CN","MG","CM","BK","GT"];
 const MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 
-let currentYear = new Date().getFullYear() + 543 - 543; // ใช้ปี ค.ศ. ตรงๆ (แก้เป็น พ.ศ. ได้ถ้าต้องการ)
-let dataMap = {}; // key: "month_product" -> qty
+let currentYear = new Date().getFullYear();
+let currentYM = null; // "YYYY-MM" สำหรับแท็บรายวัน
+let dailyRows = [];   // แถวรายวันของเดือนที่เลือก [{date, values:{product:qty}}]
 
+// ---------- helper: เรียก Supabase REST ----------
 async function supaFetch(path, options = {}) {
   const res = await fetch(SUPABASE_URL + "/rest/v1/" + path, {
     ...options,
@@ -143,95 +178,248 @@ async function supaFetch(path, options = {}) {
       ...(options.headers || {})
     }
   });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error("Supabase error " + res.status + ": " + txt);
-  }
+  if (!res.ok) { const t = await res.text(); throw new Error("Supabase " + res.status + ": " + t); }
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }
 
-function buildHeader() {
-  const headerRow = document.getElementById('headerRow');
-  PRODUCTS.forEach(p => {
-    const th = document.createElement('th');
-    th.textContent = p;
-    headerRow.appendChild(th);
-  });
-  const thTotal = document.createElement('th'); thTotal.textContent = 'รวมเดือน'; headerRow.appendChild(thTotal);
-  const thBottle = document.createElement('th'); thBottle.textContent = 'ขวด/เดือน'; headerRow.appendChild(thBottle);
+function fmt(n) { n = Number(n) || 0; return n.toLocaleString(undefined, { maximumFractionDigits: 0 }); }
+
+function daysInMonth(year, month) { return new Date(year, month, 0).getDate(); }
+function pad2(n) { return ("0" + n).slice(-2); }
+
+function showSaveIndicator(state) {
+  const el = document.getElementById('saveIndicator');
+  el.classList.remove('ok','err');
+  if (state === 'saving') {
+    el.querySelector('span').textContent = 'กำลังบันทึก...'; el.querySelector('i').className = 'fas fa-circle-notch fa-spin';
+    el.classList.add('show');
+  } else if (state === 'saved') {
+    el.querySelector('span').textContent = 'บันทึกแล้ว'; el.querySelector('i').className = 'fas fa-check';
+    el.classList.add('show','ok'); setTimeout(() => el.classList.remove('show'), 1400);
+  } else if (state === 'error') {
+    el.querySelector('span').textContent = 'บันทึกไม่สำเร็จ'; el.querySelector('i').className = 'fas fa-triangle-exclamation';
+    el.classList.add('show','err'); setTimeout(() => el.classList.remove('show'), 2200);
+  }
 }
 
-function buildBody() {
-  const tbody = document.getElementById('tableBody');
+/* ============ TABS ============ */
+document.getElementById('tabBtnDaily').addEventListener('click', () => switchTab('daily'));
+document.getElementById('tabBtnMonthly').addEventListener('click', () => switchTab('monthly'));
+function switchTab(name) {
+  document.getElementById('panelDaily').classList.toggle('active', name === 'daily');
+  document.getElementById('panelMonthly').classList.toggle('active', name === 'monthly');
+  document.getElementById('tabBtnDaily').classList.toggle('active', name === 'daily');
+  document.getElementById('tabBtnMonthly').classList.toggle('active', name === 'monthly');
+  if (name === 'monthly') loadMonthly(currentYear);
+}
+
+/* ============ แท็บรายวัน ============ */
+function buildDailyForm() {
+  const form = document.getElementById('dailyForm');
+  const saveBtn = document.getElementById('saveDayBtn');
+  PRODUCTS.forEach(p => {
+    const div = document.createElement('div'); div.className = 'field';
+    div.innerHTML = '<label>' + p + '</label><input type="number" min="0" id="entry_' + p + '">';
+    form.insertBefore(div, saveBtn);
+  });
+}
+
+function buildDailyHeader() {
+  const row = document.getElementById('dailyHeaderRow');
+  PRODUCTS.forEach(p => { const th = document.createElement('th'); th.textContent = p; row.appendChild(th); });
+  ['รวมวัน','ขวด/วัน',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; row.appendChild(th); });
+}
+
+async function populateMonthSelect() {
+  // ดึงเดือนที่มีข้อมูลจริงจากตาราง + เดือนปัจจุบันเสมอ
+  let months = new Set();
+  try {
+    const rows = await supaFetch(TABLE + '?select=prod_date');
+    (rows || []).forEach(r => { months.add(r.prod_date.slice(0,7)); });
+  } catch (e) { console.error(e); }
+  const now = new Date();
+  months.add(now.getFullYear() + '-' + pad2(now.getMonth()+1));
+  const list = [...months].sort().reverse();
+
+  const sel = document.getElementById('dailyMonthSelect');
+  sel.innerHTML = '';
+  list.forEach(ym => {
+    const [y,m] = ym.split('-');
+    const opt = document.createElement('option'); opt.value = ym;
+    opt.textContent = MONTHS[parseInt(m,10)-1] + ' ' + y;
+    sel.appendChild(opt);
+  });
+  currentYM = list[0];
+  sel.value = currentYM;
+  document.getElementById('entryDate').value = now.toISOString().slice(0,10);
+}
+
+async function loadDaily(ym) {
+  currentYM = ym;
+  const [y,m] = ym.split('-').map(Number);
+  const first = ym + '-01';
+  const last = ym + '-' + pad2(daysInMonth(y,m));
+  let rows = [];
+  try {
+    rows = await supaFetch(TABLE + '?prod_date=gte.' + first + '&prod_date=lte.' + last + '&select=prod_date,product,qty&order=prod_date.asc');
+  } catch (e) { console.error(e); }
+
+  const byDate = {};
+  (rows || []).forEach(r => {
+    if (!byDate[r.prod_date]) byDate[r.prod_date] = {};
+    byDate[r.prod_date][r.product] = parseFloat(r.qty) || 0;
+  });
+  dailyRows = Object.keys(byDate).sort().map(d => ({ date: d, values: byDate[d] }));
+  renderDailyTable();
+}
+
+function renderDailyTable() {
+  const tbody = document.getElementById('dailyBody');
   tbody.innerHTML = '';
-  MONTHS.forEach((label, i) => {
-    const month = i + 1;
+  const productSums = {}; PRODUCTS.forEach(p => productSums[p] = 0);
+  let grandTotal = 0;
+
+  dailyRows.forEach((row, idx) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + month + '</td><td>' + label + '</td>';
+    const dateLabel = row.date.split('-').reverse().join('/'); // dd/mm/yyyy
+    let rowTotal = 0;
+    let cellsHtml = '';
     PRODUCTS.forEach(p => {
-      const td = document.createElement('td');
-      const input = document.createElement('input');
-      input.type = 'number'; input.min = '0'; input.className = 'qty-input';
-      input.dataset.month = month; input.dataset.product = p;
-      input.addEventListener('change', onCellChange);
-      td.appendChild(input);
-      tr.appendChild(td);
+      const v = row.values[p] || 0;
+      rowTotal += v; productSums[p] += v;
+      cellsHtml += '<td><input type="number" min="0" class="qty-input" value="' + (v || '') + '" data-date="' + row.date + '" data-product="' + p + '"></td>';
     });
-    const tdTotal = document.createElement('td');
-    tdTotal.className = 'total-cell'; tdTotal.id = 'total-m' + month;
-    tr.appendChild(tdTotal);
-
-    const tdBottle = document.createElement('td');
-    tdBottle.className = 'bottle-cell'; tdBottle.id = 'bottle-m' + month;
-    tr.appendChild(tdBottle);
-
+    grandTotal += rowTotal;
+    tr.innerHTML = '<td>' + (idx+1) + '</td><td>' + dateLabel + '</td>' + cellsHtml +
+      '<td class="total-cell">' + (rowTotal ? fmt(rowTotal) : '-') + '</td>' +
+      '<td class="bottle-cell">' + (rowTotal ? fmt(rowTotal / BOTTLE_SIZE) : '-') + '</td>' +
+      '<td><button class="del-btn" data-date="' + row.date + '"><i class="fas fa-trash"></i></button></td>';
     tbody.appendChild(tr);
   });
+
+  tbody.querySelectorAll('.qty-input').forEach(inp => inp.addEventListener('change', onDailyCellChange));
+  tbody.querySelectorAll('.del-btn').forEach(btn => btn.addEventListener('click', onDeleteDay));
+
+  const footer = document.getElementById('dailyFooterRow');
+  footer.innerHTML = '<td>#</td><td>รวม</td>';
+  PRODUCTS.forEach(p => { const td = document.createElement('td'); td.textContent = fmt(productSums[p]); footer.appendChild(td); });
+  const tdT = document.createElement('td'); tdT.textContent = fmt(grandTotal); footer.appendChild(tdT);
+  const tdB = document.createElement('td'); tdB.textContent = fmt(grandTotal / BOTTLE_SIZE); footer.appendChild(tdB);
+  footer.appendChild(document.createElement('td'));
 }
 
-function buildFooter() {
-  const footerRow = document.getElementById('footerRow');
-  footerRow.innerHTML = '<td>#</td><td>รวม</td>';
-  PRODUCTS.forEach(p => {
-    const td = document.createElement('td'); td.id = 'sum-' + p; td.textContent = '0';
-    footerRow.appendChild(td);
+async function onDailyCellChange(e) {
+  const input = e.target;
+  const date = input.dataset.date, product = input.dataset.product;
+  const qty = parseFloat(input.value) || 0;
+  showSaveIndicator('saving');
+  try {
+    await supaFetch(TABLE + '?on_conflict=prod_date,product', {
+      method: 'POST', prefer: 'resolution=merge-duplicates',
+      body: JSON.stringify({ prod_date: date, product, qty })
+    });
+    showSaveIndicator('saved');
+    await loadDaily(currentYM);
+  } catch (err) { console.error(err); showSaveIndicator('error'); }
+}
+
+async function onDeleteDay(e) {
+  const btn = e.target.closest('button');
+  const date = btn.dataset.date;
+  if (!confirm('ลบข้อมูลวันที่ ' + date.split('-').reverse().join('/') + ' ทั้งหมดใช่ไหม?')) return;
+  showSaveIndicator('saving');
+  try {
+    await supaFetch(TABLE + '?prod_date=eq.' + date, { method: 'DELETE' });
+    showSaveIndicator('saved');
+    await loadDaily(currentYM);
+  } catch (err) { console.error(err); showSaveIndicator('error'); }
+}
+
+async function saveTodayEntry() {
+  const date = document.getElementById('entryDate').value;
+  if (!date) { alert('กรุณาเลือกวันที่ก่อน'); return; }
+  showSaveIndicator('saving');
+  try {
+    for (const p of PRODUCTS) {
+      const input = document.getElementById('entry_' + p);
+      const qty = parseFloat(input.value) || 0;
+      if (input.value === '') continue; // ข้ามช่องที่ไม่ได้กรอก
+      await supaFetch(TABLE + '?on_conflict=prod_date,product', {
+        method: 'POST', prefer: 'resolution=merge-duplicates',
+        body: JSON.stringify({ prod_date: date, product: p, qty })
+      });
+    }
+    showSaveIndicator('saved');
+    PRODUCTS.forEach(p => { document.getElementById('entry_' + p).value = ''; });
+    // ถ้าเดือนของวันที่บันทึกตรงกับเดือนที่กำลังดูอยู่ ให้รีเฟรชตาราง
+    const ym = date.slice(0,7);
+    const sel = document.getElementById('dailyMonthSelect');
+    if (![...sel.options].some(o => o.value === ym)) {
+      const opt = document.createElement('option'); const [y,m] = ym.split('-');
+      opt.value = ym; opt.textContent = MONTHS[parseInt(m,10)-1] + ' ' + y;
+      sel.appendChild(opt);
+      const opts = [...sel.options].sort((a,b) => b.value.localeCompare(a.value));
+      sel.innerHTML = ''; opts.forEach(o => sel.appendChild(o));
+    }
+    sel.value = ym;
+    await loadDaily(ym);
+  } catch (err) { console.error(err); showSaveIndicator('error'); }
+}
+
+document.getElementById('saveDayBtn').addEventListener('click', saveTodayEntry);
+document.getElementById('dailyMonthSelect').addEventListener('change', (e) => loadDaily(e.target.value));
+
+/* ============ แท็บรายเดือน (รวมจากรายวันอัตโนมัติ) ============ */
+function buildMonthlyHeader() {
+  const row = document.getElementById('monthlyHeaderRow');
+  PRODUCTS.forEach(p => { const th = document.createElement('th'); th.textContent = p; row.appendChild(th); });
+  const th1 = document.createElement('th'); th1.textContent = 'รวมเดือน'; row.appendChild(th1);
+  const th2 = document.createElement('th'); th2.textContent = 'ขวด/เดือน'; row.appendChild(th2);
+}
+
+async function loadMonthly(year) {
+  currentYear = year;
+  const first = year + '-01-01';
+  const last = year + '-12-31';
+  let rows = [];
+  try {
+    rows = await supaFetch(TABLE + '?prod_date=gte.' + first + '&prod_date=lte.' + last + '&select=prod_date,product,qty');
+  } catch (e) { console.error(e); }
+
+  const monthProduct = {}; // "month_product" -> sum
+  (rows || []).forEach(r => {
+    const month = parseInt(r.prod_date.slice(5,7), 10);
+    const key = month + '_' + r.product;
+    monthProduct[key] = (monthProduct[key] || 0) + (parseFloat(r.qty) || 0);
   });
-  const tdGrand = document.createElement('td'); tdGrand.id = 'sum-total'; tdGrand.textContent = '0';
-  footerRow.appendChild(tdGrand);
-  const tdGrandBottle = document.createElement('td'); tdGrandBottle.id = 'sum-bottle'; tdGrandBottle.textContent = '0';
-  footerRow.appendChild(tdGrandBottle);
-}
 
-function fmt(n) {
-  n = Number(n) || 0;
-  return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-}
-
-function recalc() {
-  let grandTotal = 0;
+  const tbody = document.getElementById('monthlyBody');
+  tbody.innerHTML = '';
   const productSums = {}; PRODUCTS.forEach(p => productSums[p] = 0);
+  let grandTotal = 0;
 
   for (let month = 1; month <= 12; month++) {
     let monthTotal = 0;
+    let cells = '';
     PRODUCTS.forEach(p => {
-      const qty = dataMap[month + '_' + p] || 0;
-      monthTotal += qty;
-      productSums[p] += qty;
+      const v = monthProduct[month + '_' + p] || 0;
+      monthTotal += v; productSums[p] += v;
+      cells += '<td>' + (v ? fmt(v) : '-') + '</td>';
     });
     grandTotal += monthTotal;
-    const totalEl = document.getElementById('total-m' + month);
-    const bottleEl = document.getElementById('bottle-m' + month);
-    if (totalEl) totalEl.textContent = monthTotal ? fmt(monthTotal) : '-';
-    if (bottleEl) bottleEl.textContent = monthTotal ? fmt(monthTotal / BOTTLE_SIZE) : '-';
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + month + '</td><td>' + MONTHS[month-1] + '</td>' + cells +
+      '<td class="total-cell">' + (monthTotal ? fmt(monthTotal) : '-') + '</td>' +
+      '<td class="bottle-cell">' + (monthTotal ? fmt(monthTotal / BOTTLE_SIZE) : '-') + '</td>';
+    tbody.appendChild(tr);
   }
 
-  PRODUCTS.forEach(p => {
-    const el = document.getElementById('sum-' + p);
-    if (el) el.textContent = fmt(productSums[p]);
-  });
-  document.getElementById('sum-total').textContent = fmt(grandTotal);
-  document.getElementById('sum-bottle').textContent = fmt(grandTotal / BOTTLE_SIZE);
+  const footer = document.getElementById('monthlyFooterRow');
+  footer.innerHTML = '<td>#</td><td>รวม</td>';
+  PRODUCTS.forEach(p => { const td = document.createElement('td'); td.textContent = fmt(productSums[p]); footer.appendChild(td); });
+  const tdT = document.createElement('td'); tdT.textContent = fmt(grandTotal); footer.appendChild(tdT);
+  const tdB = document.createElement('td'); tdB.textContent = fmt(grandTotal / BOTTLE_SIZE); footer.appendChild(tdB);
 
   renderSummaryCards(grandTotal);
 }
@@ -244,109 +432,31 @@ function renderSummaryCards(grandTotal) {
     '<div class="card"><div class="label"><span>เฉลี่ย/เดือน (ลิตร)</span><i class="fas fa-chart-line"></i></div><div class="value">' + fmt(grandTotal / 12) + '</div></div>';
 }
 
-function showSaveIndicator(state) {
-  const el = document.getElementById('saveIndicator');
-  el.classList.remove('ok');
-  if (state === 'saving') {
-    el.querySelector('span').textContent = 'กำลังบันทึก...';
-    el.querySelector('i').className = 'fas fa-circle-notch fa-spin';
-    el.classList.add('show');
-  } else if (state === 'saved') {
-    el.querySelector('span').textContent = 'บันทึกแล้ว';
-    el.querySelector('i').className = 'fas fa-check';
-    el.classList.add('show', 'ok');
-    setTimeout(() => el.classList.remove('show'), 1400);
-  } else if (state === 'error') {
-    el.querySelector('span').textContent = 'บันทึกไม่สำเร็จ';
-    el.querySelector('i').className = 'fas fa-triangle-exclamation';
-    el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 2200);
-  }
-}
-
-async function onCellChange(e) {
-  const input = e.target;
-  const month = parseInt(input.dataset.month, 10);
-  const product = input.dataset.product;
-  const qty = parseFloat(input.value) || 0;
-  dataMap[month + '_' + product] = qty;
-  recalc();
-
-  showSaveIndicator('saving');
+async function populateYearSelect() {
+  let years = new Set();
   try {
-    await supaFetch(TABLE + '?on_conflict=year,month,product', {
-      method: 'POST',
-      prefer: 'resolution=merge-duplicates',
-      body: JSON.stringify({ year: currentYear, month, product, qty })
-    });
-    showSaveIndicator('saved');
-  } catch (err) {
-    console.error(err);
-    showSaveIndicator('error');
-  }
-}
-
-async function loadYear(year) {
-  currentYear = year;
-  dataMap = {};
-  try {
-    const rows = await supaFetch(TABLE + '?year=eq.' + year + '&select=month,product,qty');
-    (rows || []).forEach(r => { dataMap[r.month + '_' + r.product] = parseFloat(r.qty) || 0; });
-  } catch (err) {
-    console.error('loadYear error', err);
-  }
-  // เติมค่าลงช่องกรอก
-  document.querySelectorAll('.qty-input').forEach(input => {
-    const key = input.dataset.month + '_' + input.dataset.product;
-    const v = dataMap[key];
-    input.value = v ? v : '';
-  });
-  recalc();
-}
-
-async function loadAvailableYears() {
-  let years = [];
-  try {
-    const rows = await supaFetch(TABLE + '?select=year');
-    years = [...new Set((rows || []).map(r => r.year))];
-  } catch (err) { console.error(err); }
-  const thisYear = new Date().getFullYear();
-  if (!years.includes(thisYear)) years.push(thisYear);
-  years.sort((a, b) => b - a);
-
+    const rows = await supaFetch(TABLE + '?select=prod_date');
+    (rows || []).forEach(r => years.add(parseInt(r.prod_date.slice(0,4), 10)));
+  } catch (e) { console.error(e); }
+  years.add(new Date().getFullYear());
+  const list = [...years].sort((a,b) => b-a);
   const sel = document.getElementById('yearSelect');
   sel.innerHTML = '';
-  years.forEach(y => {
-    const opt = document.createElement('option'); opt.value = y; opt.textContent = 'ปี ' + y;
-    sel.appendChild(opt);
-  });
-  sel.value = years[0];
-  await loadYear(parseInt(sel.value, 10));
+  list.forEach(y => { const opt = document.createElement('option'); opt.value = y; opt.textContent = 'ปี ' + y; sel.appendChild(opt); });
+  sel.value = list[0];
+  currentYear = list[0];
 }
+document.getElementById('yearSelect').addEventListener('change', (e) => loadMonthly(parseInt(e.target.value,10)));
 
-document.getElementById('yearSelect').addEventListener('change', (e) => loadYear(parseInt(e.target.value, 10)));
-
-document.getElementById('addYearBtn').addEventListener('click', () => {
-  const input = prompt('ระบุปี (ค.ศ.) ที่ต้องการเพิ่ม เช่น ' + (new Date().getFullYear() + 1));
-  const year = parseInt(input, 10);
-  if (!year || year < 2000 || year > 2200) return;
-  const sel = document.getElementById('yearSelect');
-  if (![...sel.options].some(o => parseInt(o.value, 10) === year)) {
-    const opt = document.createElement('option'); opt.value = year; opt.textContent = 'ปี ' + year;
-    sel.appendChild(opt);
-    // เรียงปีใหม่จากมากไปน้อย
-    const opts = [...sel.options].sort((a, b) => b.value - a.value);
-    sel.innerHTML = ''; opts.forEach(o => sel.appendChild(o));
-  }
-  sel.value = year;
-  loadYear(year);
-});
-
-// ===== เริ่มทำงาน =====
-buildHeader();
-buildBody();
-buildFooter();
-loadAvailableYears();
+/* ============ เริ่มทำงาน ============ */
+(async function init() {
+  buildDailyForm();
+  buildDailyHeader();
+  buildMonthlyHeader();
+  await populateMonthSelect();
+  await loadDaily(currentYM);
+  await populateYearSelect();
+})();
 </script>
 </body>
 </html>
