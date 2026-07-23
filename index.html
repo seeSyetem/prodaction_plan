@@ -126,26 +126,22 @@
                     <div class="mb-3">
                         <label class="form-label">วันที่ผลิต</label>
                         <input type="date" id="entryDate" class="form-control">
-                    </div>
-                
+                    </div>         
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped align-middle text-center">
                             <thead id="dailyHead"></thead>
                             <tbody id="dailyBody"></tbody>
                         </table>
                     </div>
-                
                     <button id="saveDayBtn" type="button" class="btn btn-primary">
                         <i class="fas fa-floppy-disk"></i>
                         บันทึกวันนี้
                     </button>
     </div>
-   
     <div class="toolbar">
       <select id="dailyMonthSelect"></select>
       <span class="hint" style="margin:0">แสดงรายการที่บันทึกไว้ในเดือนนี้</span>
     </div>
-
     <div class="table-wrap">
       <table>
         <thead>
@@ -296,7 +292,7 @@ PRODUCTS.forEach(product => {actualRow += `<td><input type="number" min="0" clas
 });
 actualRow += `</tr>`;
 body.innerHTML = planRow + actualRow;
-   form.insertBefore(div, saveBtn);
+form.insertBefore(div, saveBtn);
 }
 
 function buildDailyHeader() {
@@ -445,46 +441,60 @@ async function onDeleteDay(e) {
 }
 
 async function saveTodayEntry() {
-  const date = document.getElementById('entryDate').value;
-  if (!date) { alert('กรุณาเลือกวันที่ก่อน'); return; }
-  const target = parseFloat(document.getElementById('entryTarget').value) || 0;
-  showSaveIndicator('saving');
-  try {
-    if (document.getElementById('entryTarget').value !== '') {
-      await supaFetch(PLAN_TABLE + '?on_conflict=prod_date', {
-        method: 'POST', prefer: 'resolution=merge-duplicates',
-        body: JSON.stringify({ prod_date: date, target_liters: target })
-      });
+    const date = document.getElementById("entryDate").value;
+    if (!date) {
+        alert("กรุณาเลือกวันที่ก่อน");
+        return;
     }
-    for (const p of PRODUCTS) {
-      const input = document.getElementById('entry_' + p);
-      if (input.value === '') continue;
-      const qty = parseFloat(input.value) || 0;
-      await supaFetch(TABLE + '?on_conflict=prod_date,product', {
-        method: 'POST', prefer: 'resolution=merge-duplicates',
-        body: JSON.stringify({ prod_date: date, product: p, qty })
-      });
+    showSaveIndicator("saving");
+    try {
+        // บันทึกข้อมูลแต่ละสินค้า
+        for (const p of PRODUCTS) {
+            const planInput = document.getElementById(`plan_${p}`);
+            const actualInput = document.getElementById(`actual_${p}`);
+            const planQty = parseFloat(planInput?.value) || 0;
+            const actualQty = parseFloat(actualInput?.value) || 0;
+            // ถ้าไม่ได้กรอกเลย ข้าม
+            if (planQty === 0 && actualQty === 0) continue;
+            await supaFetch(TABLE + "?on_conflict=prod_date,product", {
+                method: "POST",
+                prefer: "resolution=merge-duplicates",
+                body: JSON.stringify({
+                    prod_date: date,
+                    product: p,
+                    plan_qty: planQty,
+                    actual_qty: actualQty
+                })
+            });
+        }
+        showSaveIndicator("saved");
+        // ล้างข้อมูล
+        PRODUCTS.forEach(p => {
+            document.getElementById(`plan_${p}`).value = "";
+            document.getElementById(`actual_${p}`).value = "";
+        });
+        const ym = date.slice(0, 7);
+        const sel = document.getElementById("dailyMonthSelect");
+        if (![...sel.options].some(o => o.value === ym)) {
+            const opt = document.createElement("option");
+            const [y, m] = ym.split("-");
+            opt.value = ym;
+            opt.textContent = MONTHS[parseInt(m, 10) - 1] + " " + y;
+            sel.appendChild(opt);
+            const opts = [...sel.options].sort((a, b) => b.value.localeCompare(a.value));
+            sel.innerHTML = "";
+            opts.forEach(o => sel.appendChild(o));
+        }
+        sel.value = ym;
+        await loadDaily(ym);
+    } catch (err) {
+        console.error(err);
+        alert(err.message);
+        showSaveIndicator("error");
     }
-    showSaveIndicator('saved');
-    document.getElementById('entryTarget').value = '';
-    PRODUCTS.forEach(p => { document.getElementById('entry_' + p).value = ''; });
-
-    const ym = date.slice(0,7);
-    const sel = document.getElementById('dailyMonthSelect');
-    if (![...sel.options].some(o => o.value === ym)) {
-      const opt = document.createElement('option'); const [y,mo] = ym.split('-');
-      opt.value = ym; opt.textContent = MONTHS[parseInt(mo,10)-1] + ' ' + y;
-      sel.appendChild(opt);
-      const opts = [...sel.options].sort((a,b) => b.value.localeCompare(a.value));
-      sel.innerHTML = ''; opts.forEach(o => sel.appendChild(o));
-    }
-    sel.value = ym;
-    await loadDaily(ym);
-  } catch (err) { console.error(err); showSaveIndicator('error'); }
 }
-
-document.getElementById('saveDayBtn').addEventListener('click', saveTodayEntry);
-document.getElementById('dailyMonthSelect').addEventListener('change', (e) => loadDaily(e.target.value));
+document.getElementById("saveDayBtn").addEventListener("click", saveTodayEntry);
+document.getElementById("dailyMonthSelect").addEventListener("change", e => loadDaily(e.target.value));
 
 /* ============ แท็บรายเดือน (รวมจากรายวันอัตโนมัติ) ============ */
 function buildMonthlyHeader() {
