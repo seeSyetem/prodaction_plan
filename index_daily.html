@@ -176,7 +176,7 @@ const SUPABASE_URL = "https://yhgrkgbarutrzhignowg.supabase.co";
 const SUPABASE_KEY = "sb_publishable_P3YwKv-rIX6sEwBAoqJQHg_9mu4cM8j";
 const TABLE = "daily_production";       // รายวัน: [prod_date, product, qty]
 const PLAN_TABLE = "daily_plan";        // รายวัน: [prod_date (unique), target_liters, actual_liters]
-const BOTTLE_SIZE = 0.31;               // ลิตรต่อขวด (คอลัมน์ ขวด/วัน, ขวด/เดือน)
+const BOTTLE_SIZE = 0.315;               // ลิตรต่อขวด (คอลัมน์ ขวด/วัน, ขวด/เดือน)
 const TRAY_BOTTLE_SIZE = 0.315;         // ลิตรต่อขวด สำหรับคำนวณ tray ที่ได้จริงโดยเฉพาะ
 function calcTray(liters) { return (Number(liters) || 0) / TRAY_BOTTLE_SIZE / 24; }
 
