@@ -253,9 +253,10 @@ function buildDailyForm() {
   PRODUCTS.forEach(p => {
     const div = document.createElement('div'); 
     div.className = 'field';
+    div.innerHTML =
     '<label>' + p + '</label>' +
     '<input type="number" min="0" id="entry_' + p + '">' +
-    '<input type="number" min="0" id="actual_' + p + '">';
+    '<input type="number" min="0" id="entry2_' + p + '">';
     form.insertBefore(div, saveBtn);
   });
 }
