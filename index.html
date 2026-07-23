@@ -251,8 +251,11 @@ function buildDailyForm() {
   const form = document.getElementById('dailyForm');
   const saveBtn = document.getElementById('saveDayBtn');
   PRODUCTS.forEach(p => {
-    const div = document.createElement('div'); div.className = 'field';
-    div.innerHTML = '<label>' + p + '</label><input type="number" min="0" id="entry_' + p + '">';
+    const div = document.createElement('div'); 
+    div.className = 'field';
+    '<label>' + p + '</label>' +
+    '<input type="number" min="0" id="entry_' + p + '">' +
+    '<input type="number" min="0" id="actual_' + p + '">';
     form.insertBefore(div, saveBtn);
   });
 }
