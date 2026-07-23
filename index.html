@@ -259,7 +259,7 @@ function switchTab(name) {
 function buildDailyForm() {
   const form = document.getElementById('dailyForm');
   const saveBtn = document.getElementById('saveDayBtn');
-  PRODUCTS.forEach(p => {
+  /*PRODUCTS.forEach(p => {
     const div = document.createElement('div'); 
     div.className = 'field';
     div.innerHTML =
@@ -267,7 +267,60 @@ function buildDailyForm() {
     '<input type="number" min="0" id="entry_' + p + '">' +
      '<label>' + p + '</label>' +'<input type="number" min="0" id="actual_' + p + '">';
     form.insertBefore(div, saveBtn);
-  });
+  });*/
+const head = document.getElementById("dailyHead");
+const body = document.getElementById("dailyBody");
+// ========================
+// Header
+// ========================
+let htmlHead = `
+<tr> <th style="min-width:180px"></th>`;
+PRODUCTS.forEach(product => {
+    htmlHead += `<th>${product}</th>`;
+});
+htmlHead += `</tr>`;
+head.innerHTML = htmlHead;
+// ========================
+// แถว ลิตรตามแผน
+// ========================
+let planRow = `
+<tr>
+    <th class="text-start">
+        ลิตรตามแผน
+    </th>`;
+PRODUCTS.forEach(product => {
+    planRow += `
+        <td>
+            <input
+                type="number"
+                min="0"
+                class="form-control text-center"
+                id="plan_${product}"
+                value="0">
+        </td>`;
+});
+planRow += `</tr>`;
+// ========================
+// แถว ลิตรที่ได้จริง
+// ========================
+let actualRow = `
+<tr>
+    <th class="text-start">
+        ลิตรที่ได้จริง
+    </th>`;
+PRODUCTS.forEach(product => {
+    actualRow += `
+        <td>
+            <input
+                type="number"
+                min="0"
+                class="form-control text-center"
+                id="actual_${product}"
+                value="0">
+        </td>`;
+});
+actualRow += `</tr>`;
+body.innerHTML = planRow + actualRow;
 }
 
 function buildDailyHeader() {
