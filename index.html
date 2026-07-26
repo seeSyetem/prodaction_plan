@@ -316,22 +316,45 @@
       <div class="chart-box"><canvas id="productChart"></canvas></div>
     </div>
     <div class="table-wrap">
-      <table>
+      <table class="table-simple">
         <thead>
           <tr>
-            <th rowspan="2">#</th><th rowspan="2">เดือน</th>
-            <th rowspan="2">ลิตรตามแผน</th>
-            <th rowspan="2">ลิตรที่ได้จริง</th>
-            <th rowspan="2">tray ที่ได้จริง</th>
-            <th rowspan="2">% สำเร็จ</th>
-            <th colspan="8" class="group-plan" align="center">ลิตรตามแผนตามผลิตภัณฑ์</th>
-            <th colspan="8" class="group-actual"align="center">ลิตรที่ได้จริงตามผลิตภัณฑ์</th>
-            <th rowspan="2">ขวด/เดือน</th>
+            <th>#</th><th>เดือน</th>
+            <th>ลิตรตามแผน</th>
+            <th>ลิตรที่ได้จริง</th>
+            <th>tray ที่ได้จริง</th>
+            <th>% สำเร็จ</th>
+            <th>ขวด/เดือน</th>
           </tr>
-          <tr id="monthlyHeaderRow"></tr>
         </thead>
         <tbody id="monthlyBody"></tbody>
         <tfoot><tr id="monthlyFooterRow"></tr></tfoot>
+      </table>
+    </div>
+
+    <p class="hint" style="margin:20px 2px 8px"><i class="fas fa-circle-info"></i> ลิตรตามแผน แยกตามผลิตภัณฑ์</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr id="monthlyPlanHeaderRow">
+            <th>#</th><th>เดือน</th>
+          </tr>
+        </thead>
+        <tbody id="monthlyPlanBody"></tbody>
+        <tfoot><tr id="monthlyPlanFooterRow"></tr></tfoot>
+      </table>
+    </div>
+
+    <p class="hint" style="margin:20px 2px 8px"><i class="fas fa-circle-info"></i> ลิตรที่ได้จริง แยกตามผลิตภัณฑ์</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr id="monthlyActualHeaderRow">
+            <th>#</th><th>เดือน</th>
+          </tr>
+        </thead>
+        <tbody id="monthlyActualBody"></tbody>
+        <tfoot><tr id="monthlyActualFooterRow"></tr></tfoot>
       </table>
     </div>
     <p class="hint"><i class="fas fa-circle-info"></i> ตารางนี้รวมยอดจากข้อมูลรายวันให้อัตโนมัติ (อ่านอย่างเดียว)</p>
@@ -395,7 +418,7 @@ function showSaveIndicator(state) {
 }
 
 /* ============ TABS ============ */
-const ADMIN_PASSWORD = "see1234";
+const ADMIN_PASSWORD = "ไทยครับ";
 document.getElementById('tabBtnDaily').addEventListener('click', () => switchTab('daily'));
 document.getElementById('tabBtnMonthly').addEventListener('click', () => switchTab('monthly'));
 function switchTab(name) {
@@ -691,9 +714,10 @@ document.getElementById("dailyMonthSelect").addEventListener("change", e => load
 
 /* ============ แท็บรายเดือน (รวมจากรายวันอัตโนมัติ) ============ */
 function buildMonthlyHeader() {
-  const row = document.getElementById('monthlyHeaderRow');
-  PRODUCTS.forEach(p => { const th = document.createElement('th'); th.textContent = p; th.className = 'sub-plan'; row.appendChild(th); });
-  PRODUCTS.forEach(p => { const th = document.createElement('th'); th.textContent = p; th.className = 'sub-actual'; row.appendChild(th); });
+  const planRow = document.getElementById('monthlyPlanHeaderRow');
+  const actualRow = document.getElementById('monthlyActualHeaderRow');
+  PRODUCTS.forEach(p => { const th = document.createElement('th'); th.textContent = p; planRow.appendChild(th); });
+  PRODUCTS.forEach(p => { const th = document.createElement('th'); th.textContent = p; actualRow.appendChild(th); });
 }
 
 async function loadMonthly(year) {
@@ -726,7 +750,9 @@ async function loadMonthly(year) {
   });
 
   const tbody = document.getElementById('monthlyBody');
-  tbody.innerHTML = '';
+  const planTbody = document.getElementById('monthlyPlanBody');
+  const actualTbody = document.getElementById('monthlyActualBody');
+  tbody.innerHTML = ''; planTbody.innerHTML = ''; actualTbody.innerHTML = '';
   const productSums = {}; PRODUCTS.forEach(p => productSums[p] = 0);
   const planProductSums = {}; PRODUCTS.forEach(p => planProductSums[p] = 0);
   let grandTotal = 0, grandTarget = 0;
@@ -759,10 +785,16 @@ async function loadMonthly(year) {
       '<td class="total-cell">' + (monthTotal ? fmt(monthTotal) : '-') + '</td>' +
       '<td class="bottle-cell">' + (monthTotal ? fmt(calcTray(monthTotal)) : '-') + '</td>' +
       '<td class="pct-cell">' + fmtPct(monthTotal, target) + '</td>' +
-      planCells +
-      cells +
       '<td class="bottle-cell">' + (monthTotal ? fmt(monthTotal / BOTTLE_SIZE) : '-') + '</td>';
     tbody.appendChild(tr);
+
+    const trPlan = document.createElement('tr');
+    trPlan.innerHTML = '<td>' + month + '</td><td>' + MONTHS[month-1] + '</td>' + planCells;
+    planTbody.appendChild(trPlan);
+
+    const trActual = document.createElement('tr');
+    trActual.innerHTML = '<td>' + month + '</td><td>' + MONTHS[month-1] + '</td>' + cells;
+    actualTbody.appendChild(trActual);
   }
 
   const footer = document.getElementById('monthlyFooterRow');
@@ -770,10 +802,16 @@ async function loadMonthly(year) {
     '<td>' + fmt(grandTarget) + '</td>' +
     '<td>' + fmt(grandTotal) + '</td>' +
     '<td>' + fmt(calcTray(grandTotal)) + '</td>' +
-    '<td>' + fmtPct(grandTotal, grandTarget) + '</td>';
-  PRODUCTS.forEach(p => { const td = document.createElement('td'); td.className = 'col-plan'; td.textContent = fmt(planProductSums[p]); footer.appendChild(td); });
-  PRODUCTS.forEach(p => { const td = document.createElement('td'); td.className = 'col-actual'; td.textContent = fmt(productSums[p]); footer.appendChild(td); });
-  const tdB = document.createElement('td'); tdB.textContent = fmt(grandTotal / BOTTLE_SIZE); footer.appendChild(tdB);
+    '<td>' + fmtPct(grandTotal, grandTarget) + '</td>' +
+    '<td>' + fmt(grandTotal / BOTTLE_SIZE) + '</td>';
+
+  const planFooter = document.getElementById('monthlyPlanFooterRow');
+  planFooter.innerHTML = '<td>#</td><td>รวม</td>';
+  PRODUCTS.forEach(p => { const td = document.createElement('td'); td.textContent = fmt(planProductSums[p]); planFooter.appendChild(td); });
+
+  const actualFooter = document.getElementById('monthlyActualFooterRow');
+  actualFooter.innerHTML = '<td>#</td><td>รวม</td>';
+  PRODUCTS.forEach(p => { const td = document.createElement('td'); td.textContent = fmt(productSums[p]); actualFooter.appendChild(td); });
 
   renderSummaryCards(grandTotal, grandTarget);
   renderMonthlyChart(chartPlan, chartActual);
