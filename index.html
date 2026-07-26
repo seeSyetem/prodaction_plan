@@ -231,6 +231,7 @@
   .chart-legend .dash{width:14px; height:0; border-top:2px dashed var(--ink-soft); display:inline-block}
   .dot-plan{background:var(--brand)}
   .dot-actual{background:var(--amber)}
+  .dot-yield{background:#6a4ab7}
   .chart-tools{display:flex; align-items:center; gap:8px; margin-left:auto}
   .chart-type-toggle{display:flex; background:var(--brand-pale); border-radius:8px; padding:3px; gap:2px}
   .chart-type-toggle button{
@@ -373,6 +374,7 @@
           <span data-index="0"><i class="dot dot-plan"></i>ลิตรตามแผน</span>
           <span data-index="1"><i class="dot dot-actual"></i>ลิตรที่ได้จริง</span>
           <span data-index="2"><i class="dash"></i>ค่าเฉลี่ย</span>
+          <span data-index="3"><i class="dot dot-yield"></i>% สำเร็จ</span>
         </div>
         <div class="chart-tools">
           <div class="chart-type-toggle" id="monthlyTypeToggle">
@@ -938,28 +940,59 @@ function average(arr) {
   return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
-function buildChartDatasets(type, planData, actualData) {
+function buildChartDatasets(type, planData, actualData, opts) {
+  opts = opts || {};
   const avg = average(actualData);
   const avgDataset = {
     label: 'ค่าเฉลี่ย', data: actualData.map(() => avg), type: 'line',
     borderColor: '#8a94a6', borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0,
     fill: false, tension: 0, order: -1, datalabels: { display: false }
   };
-  if (type === 'line') {
-    return [
-      { label: 'ลิตรตามแผน', data: planData, borderColor: '#0e6b57', backgroundColor: 'rgba(14,107,87,.12)', pointBackgroundColor: '#0e6b57', pointRadius: 3, borderWidth: 2, tension: 0.3, fill: true },
-      { label: 'ลิตรที่ได้จริง', data: actualData, borderColor: '#f0a324', backgroundColor: 'rgba(240,163,36,.15)', pointBackgroundColor: '#f0a324', pointRadius: 3, borderWidth: 2, tension: 0.3, fill: true },
-      avgDataset
-    ];
-  }
-  return [
+  const datasets = type === 'line' ? [
+    { label: 'ลิตรตามแผน', data: planData, borderColor: '#0e6b57', backgroundColor: 'rgba(14,107,87,.12)', pointBackgroundColor: '#0e6b57', pointRadius: 3, borderWidth: 2, tension: 0.3, fill: true },
+    { label: 'ลิตรที่ได้จริง', data: actualData, borderColor: '#f0a324', backgroundColor: 'rgba(240,163,36,.15)', pointBackgroundColor: '#f0a324', pointRadius: 3, borderWidth: 2, tension: 0.3, fill: true },
+    avgDataset
+  ] : [
     { label: 'ลิตรตามแผน', data: planData, backgroundColor: '#0e6b57', borderRadius: 4, maxBarThickness: 26 },
     { label: 'ลิตรที่ได้จริง', data: actualData, backgroundColor: '#f0a324', borderRadius: 4, maxBarThickness: 26 },
     avgDataset
   ];
+  if (opts.includeYield) {
+    const yieldData = planData.map((p, i) => p > 0 ? Math.round((actualData[i] || 0) / p * 1000) / 10 : null);
+    datasets.push({
+      label: '% สำเร็จ', data: yieldData, type: 'line', yAxisID: 'y1',
+      borderColor: '#6a4ab7', backgroundColor: '#6a4ab7', pointBackgroundColor: '#6a4ab7',
+      borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false, order: -2,
+      datalabels: {
+        color: '#4a2f8a', anchor: 'end', align: 'top', offset: 2,
+        formatter: (v) => v != null ? v + '%' : ''
+      }
+    });
+  }
+  return datasets;
 }
 
-function chartCommonOptions(loadingEl, type, highlightIndex) {
+function chartCommonOptions(loadingEl, type, highlightIndex, showYieldAxis) {
+  const scales = {
+    y: {
+      beginAtZero: true,
+      grid: { color: 'rgba(14,107,87,.08)' },
+      ticks: { callback: v => (v/1000) + 'k', font: { family: 'JetBrains Mono' } }
+    },
+    x: {
+      grid: { display: false },
+      ticks: { font: { family: 'Sarabun' } }
+    }
+  };
+  if (showYieldAxis) {
+    scales.y1 = {
+      position: 'right',
+      beginAtZero: true,
+      suggestedMax: 120,
+      grid: { drawOnChartArea: false },
+      ticks: { callback: v => v + '%', font: { family: 'JetBrains Mono', size: 10 }, color: '#6a4ab7' }
+    };
+  }
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -972,7 +1005,9 @@ function chartCommonOptions(loadingEl, type, highlightIndex) {
       currentMonthHighlight: { index: highlightIndex ?? null },
       tooltip: {
         callbacks: {
-          label: (item) => item.dataset.label + ': ' + fmt(item.parsed.y) + ' ลิตร'
+          label: (item) => item.dataset.yAxisID === 'y1'
+            ? item.dataset.label + ': ' + item.parsed.y + '%'
+            : item.dataset.label + ': ' + fmt(item.parsed.y) + ' ลิตร'
         }
       },
       datalabels: type === 'line' ? {
@@ -992,17 +1027,7 @@ function chartCommonOptions(loadingEl, type, highlightIndex) {
         formatter: (v) => v ? fmt(v) : ''
       }
     },
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: { color: 'rgba(14,107,87,.08)' },
-        ticks: { callback: v => (v/1000) + 'k', font: { family: 'JetBrains Mono' } }
-      },
-      x: {
-        grid: { display: false },
-        ticks: { font: { family: 'Sarabun' } }
-      }
-    }
+    scales
   };
 }
 
@@ -1028,8 +1053,8 @@ function drawMonthlyChart() {
   const highlightIndex = (currentYear === now.getFullYear()) ? now.getMonth() : null;
   monthlyChartInstance = new Chart(ctx, {
     type: monthlyChartType,
-    data: { labels: MONTHS, datasets: buildChartDatasets(monthlyChartType, planData, actualData) },
-    options: chartCommonOptions(loadingEl, monthlyChartType, highlightIndex)
+    data: { labels: MONTHS, datasets: buildChartDatasets(monthlyChartType, planData, actualData, { includeYield: true }) },
+    options: chartCommonOptions(loadingEl, monthlyChartType, highlightIndex, true)
   });
 }
 
