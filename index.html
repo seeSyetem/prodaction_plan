@@ -225,7 +225,18 @@
   .chart-legend .dot{width:10px; height:10px; border-radius:3px; display:inline-block}
   .dot-plan{background:var(--brand)}
   .dot-actual{background:var(--amber)}
-  .chart-box{position:relative; width:100%; height:320px}
+  .chart-box{position:relative; width:100%; height:320px; overflow-x:auto; overflow-y:hidden}
+  .chart-box canvas{min-width:100%}
+  @media (max-width:600px){
+    .chart-box canvas{min-width:640px}
+  }
+  .chart-empty{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    flex-direction:column; gap:8px; color:var(--ink-soft); text-align:center; pointer-events:none;
+  }
+  .chart-empty.show{display:flex}
+  .chart-empty i{font-size:26px; color:var(--line)}
+  .chart-empty span{font-size:13px; font-weight:600}
 
   /* ===== มือถือ ===== */
   @media (max-width: 640px){
@@ -339,7 +350,10 @@
           <span><i class="dot dot-actual"></i>ลิตรที่ได้จริง</span>
         </div>
       </div>
-      <div class="chart-box"><canvas id="monthlyChart"></canvas></div>
+      <div class="chart-box">
+        <canvas id="monthlyChart"></canvas>
+        <div class="chart-empty" id="monthlyChartEmpty"><i class="fas fa-chart-column"></i><span>ยังไม่มีข้อมูล</span></div>
+      </div>
     </div>
     <div class="chart-card">
       <div class="chart-card-head">
@@ -349,7 +363,10 @@
           <span><i class="dot dot-actual"></i>ลิตรที่ได้จริง</span>
         </div>
       </div>
-      <div class="chart-box"><canvas id="productChart"></canvas></div>
+      <div class="chart-box">
+        <canvas id="productChart"></canvas>
+        <div class="chart-empty" id="productChartEmpty"><i class="fas fa-layer-group"></i><span>ยังไม่มีข้อมูล</span></div>
+      </div>
     </div>
     <div class="table-wrap">
       <table class="table-simple">
@@ -857,6 +874,9 @@ if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
 let monthlyChartInstance = null;
 function renderMonthlyChart(planData, actualData) {
   const ctx = document.getElementById('monthlyChart');
+  const emptyEl = document.getElementById('monthlyChartEmpty');
+  const hasData = planData.some(v => v > 0) || actualData.some(v => v > 0);
+  if (emptyEl) emptyEl.classList.toggle('show', !hasData);
   if (monthlyChartInstance) monthlyChartInstance.destroy();
   monthlyChartInstance = new Chart(ctx, {
     type: 'bar',
@@ -881,7 +901,7 @@ function renderMonthlyChart(planData, actualData) {
         datalabels: {
           anchor: 'end',
           align: 'end',
-          color: '#122621',
+          color: (ctx) => ctx.datasetIndex === 0 ? '#0a3d33' : '#7a4d00',
           font: (ctx) => ({ family: 'JetBrains Mono', size: ctx.chart.width < 500 ? 8 : 10, weight: '600' }),
           rotation: (ctx) => ctx.chart.width < 500 ? -90 : 0,
           formatter: (v) => v ? fmt(v) : ''
@@ -905,14 +925,19 @@ function renderMonthlyChart(planData, actualData) {
 let productChartInstance = null;
 function renderProductChart(planSums, actualSums) {
   const ctx = document.getElementById('productChart');
+  const emptyEl = document.getElementById('productChartEmpty');
+  const planArr = PRODUCTS.map(p => planSums[p] || 0);
+  const actualArr = PRODUCTS.map(p => actualSums[p] || 0);
+  const hasData = planArr.some(v => v > 0) || actualArr.some(v => v > 0);
+  if (emptyEl) emptyEl.classList.toggle('show', !hasData);
   if (productChartInstance) productChartInstance.destroy();
   productChartInstance = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: PRODUCTS,
       datasets: [
-        { label: 'ลิตรตามแผน', data: PRODUCTS.map(p => planSums[p] || 0), backgroundColor: '#0e6b57', borderRadius: 4, maxBarThickness: 26 },
-        { label: 'ลิตรที่ได้จริง', data: PRODUCTS.map(p => actualSums[p] || 0), backgroundColor: '#f0a324', borderRadius: 4, maxBarThickness: 26 }
+        { label: 'ลิตรตามแผน', data: planArr, backgroundColor: '#0e6b57', borderRadius: 4, maxBarThickness: 26 },
+        { label: 'ลิตรที่ได้จริง', data: actualArr, backgroundColor: '#f0a324', borderRadius: 4, maxBarThickness: 26 }
       ]
     },
     options: {
@@ -929,7 +954,7 @@ function renderProductChart(planSums, actualSums) {
         datalabels: {
           anchor: 'end',
           align: 'end',
-          color: '#122621',
+          color: (ctx) => ctx.datasetIndex === 0 ? '#0a3d33' : '#7a4d00',
           font: (ctx) => ({ family: 'JetBrains Mono', size: ctx.chart.width < 500 ? 8 : 10, weight: '600' }),
           rotation: (ctx) => ctx.chart.width < 500 ? -90 : 0,
           formatter: (v) => v ? fmt(v) : ''
