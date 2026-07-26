@@ -882,7 +882,8 @@ function renderMonthlyChart(planData, actualData) {
           anchor: 'end',
           align: 'end',
           color: '#122621',
-          font: { family: 'JetBrains Mono', size: 10, weight: '600' },
+          font: (ctx) => ({ family: 'JetBrains Mono', size: ctx.chart.width < 500 ? 8 : 10, weight: '600' }),
+          rotation: (ctx) => ctx.chart.width < 500 ? -90 : 0,
           formatter: (v) => v ? fmt(v) : ''
         }
       },
@@ -929,7 +930,8 @@ function renderProductChart(planSums, actualSums) {
           anchor: 'end',
           align: 'end',
           color: '#122621',
-          font: { family: 'JetBrains Mono', size: 10, weight: '600' },
+          font: (ctx) => ({ family: 'JetBrains Mono', size: ctx.chart.width < 500 ? 8 : 10, weight: '600' }),
+          rotation: (ctx) => ctx.chart.width < 500 ? -90 : 0,
           formatter: (v) => v ? fmt(v) : ''
         }
       },
