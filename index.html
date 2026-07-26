@@ -964,7 +964,7 @@ function buildChartDatasets(type, planData, actualData, opts) {
       borderColor: '#6a4ab7', backgroundColor: '#6a4ab7', pointBackgroundColor: '#6a4ab7',
       borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false, order: -2,
       datalabels: {
-        color: '#4a2f8a', anchor: 'end', align: 'top', offset: 2,
+        color: '#4a2f8a', anchor: 'end', align: 'top', offset: 10,
         formatter: (v) => v != null ? v + '%' : ''
       }
     });
@@ -996,7 +996,7 @@ function chartCommonOptions(loadingEl, type, highlightIndex, showYieldAxis) {
   return {
     responsive: true,
     maintainAspectRatio: false,
-    layout: { padding: { top: 24, bottom: type === 'line' ? 10 : 0 } },
+    layout: { padding: { top: 50, bottom: type === 'line' ? 10 : 0 } },
     animation: {
       onComplete: () => { if (loadingEl) loadingEl.classList.remove('show'); }
     },
