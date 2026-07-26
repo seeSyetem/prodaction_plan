@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Kanit:wght@500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
   :root{
     --bg:#eef3f1;
@@ -190,6 +191,23 @@
   tbody tr:hover td.col-actual{background:#fdf1dc}
   tfoot td.col-plan{background:#d7ece3; color:var(--brand-deep)}
   tfoot td.col-actual{background:var(--amber-pale)}
+
+  /* ===== กราฟรายเดือน ===== */
+  .chart-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px 12px;
+    margin-bottom:18px; box-shadow:0 2px 10px rgba(10,61,51,.05);
+  }
+  .chart-card-head{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:12px;
+  }
+  .chart-card-head > span{font-family:var(--display); font-weight:600; font-size:14px; color:var(--brand-deep); display:flex; align-items:center; gap:8px}
+  .chart-card-head > span i{color:var(--amber-deep)}
+  .chart-legend{display:flex; gap:16px; font-size:12.5px; color:var(--ink-soft)}
+  .chart-legend span{display:flex; align-items:center; gap:6px}
+  .chart-legend .dot{width:10px; height:10px; border-radius:3px; display:inline-block}
+  .dot-plan{background:var(--brand)}
+  .dot-actual{background:var(--amber)}
+  .chart-box{position:relative; width:100%; height:280px}
 </style>
 </head>
 <body>
@@ -251,7 +269,7 @@
             <th rowspan="2">tray ที่ได้จริง</th>
             <th rowspan="2">% สำเร็จ</th>
             <th colspan="8" class="group-plan" align="center">ลิตรตามแผนตามผลิตภัณฑ์</th>
-            <th colspan="8" class="group-actual" align="center">ลิตรที่ได้จริงตามผลิตภัณฑ์</th>
+            <th colspan="8" class="group-actual"align="center">ลิตรที่ได้จริงตามผลิตภัณฑ์</th>
             <th rowspan="2">ขวด/วัน</th>
             <th rowspan="2"></th>
           </tr>
@@ -270,6 +288,16 @@
       <select id="yearSelect"></select>
     </div>
     <div class="cards" id="summaryCards"></div>
+    <div class="chart-card">
+      <div class="chart-card-head">
+        <span><i class="fas fa-chart-column"></i> แผนเทียบยอดจริง รายเดือน</span>
+        <div class="chart-legend">
+          <span><i class="dot dot-plan"></i>ลิตรตามแผน</span>
+          <span><i class="dot dot-actual"></i>ลิตรที่ได้จริง</span>
+        </div>
+      </div>
+      <div class="chart-box"><canvas id="monthlyChart"></canvas></div>
+    </div>
     <div class="table-wrap">
       <table>
         <thead>
@@ -280,7 +308,7 @@
             <th rowspan="2">tray ที่ได้จริง</th>
             <th rowspan="2">% สำเร็จ</th>
             <th colspan="8" class="group-plan" align="center">ลิตรตามแผนตามผลิตภัณฑ์</th>
-            <th colspan="8" class="group-actual" align="center">ลิตรที่ได้จริงตามผลิตภัณฑ์</th>
+            <th colspan="8" class="group-actual"align="center">ลิตรที่ได้จริงตามผลิตภัณฑ์</th>
             <th rowspan="2">ขวด/เดือน</th>
           </tr>
           <tr id="monthlyHeaderRow"></tr>
@@ -693,6 +721,7 @@ async function loadMonthly(year) {
   const productSums = {}; PRODUCTS.forEach(p => productSums[p] = 0);
   const planProductSums = {}; PRODUCTS.forEach(p => planProductSums[p] = 0);
   let grandTotal = 0, grandTarget = 0;
+  const chartPlan = [], chartActual = [];
 
   for (let month = 1; month <= 12; month++) {
     let monthTotal = 0;
@@ -712,6 +741,8 @@ async function loadMonthly(year) {
     });
     const target = monthPlanTotal || (monthTarget[month] || 0);
     grandTotal += monthTotal; grandTarget += target;
+    chartPlan.push(target);
+    chartActual.push(monthTotal);
 
     const tr = document.createElement('tr');
     tr.innerHTML = '<td>' + month + '</td><td>' + MONTHS[month-1] + '</td>' +
@@ -736,6 +767,46 @@ async function loadMonthly(year) {
   const tdB = document.createElement('td'); tdB.textContent = fmt(grandTotal / BOTTLE_SIZE); footer.appendChild(tdB);
 
   renderSummaryCards(grandTotal, grandTarget);
+  renderMonthlyChart(chartPlan, chartActual);
+}
+
+let monthlyChartInstance = null;
+function renderMonthlyChart(planData, actualData) {
+  const ctx = document.getElementById('monthlyChart');
+  if (monthlyChartInstance) monthlyChartInstance.destroy();
+  monthlyChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: MONTHS,
+      datasets: [
+        { label: 'ลิตรตามแผน', data: planData, backgroundColor: '#0e6b57', borderRadius: 4, maxBarThickness: 26 },
+        { label: 'ลิตรที่ได้จริง', data: actualData, backgroundColor: '#f0a324', borderRadius: 4, maxBarThickness: 26 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (item) => item.dataset.label + ': ' + fmt(item.parsed.y) + ' ลิตร'
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(14,107,87,.08)' },
+          ticks: { callback: v => (v/1000) + 'k', font: { family: 'JetBrains Mono' } }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { family: 'Sarabun' } }
+        }
+      }
+    }
+  });
 }
 
 function renderSummaryCards(grandTotal, grandTarget) {
