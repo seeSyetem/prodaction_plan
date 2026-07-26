@@ -299,6 +299,16 @@
       </div>
       <div class="chart-box"><canvas id="monthlyChart"></canvas></div>
     </div>
+    <div class="chart-card">
+      <div class="chart-card-head">
+        <span><i class="fas fa-layer-group"></i> แผนเทียบยอดจริง แยกตามผลิตภัณฑ์</span>
+        <div class="chart-legend">
+          <span><i class="dot dot-plan"></i>ลิตรตามแผน</span>
+          <span><i class="dot dot-actual"></i>ลิตรที่ได้จริง</span>
+        </div>
+      </div>
+      <div class="chart-box"><canvas id="productChart"></canvas></div>
+    </div>
     <div class="table-wrap">
       <table>
         <thead>
@@ -769,6 +779,7 @@ async function loadMonthly(year) {
 
   renderSummaryCards(grandTotal, grandTarget);
   renderMonthlyChart(chartPlan, chartActual);
+  renderProductChart(planProductSums, productSums);
 }
 
 if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
@@ -784,6 +795,53 @@ function renderMonthlyChart(planData, actualData) {
       datasets: [
         { label: 'ลิตรตามแผน', data: planData, backgroundColor: '#0e6b57', borderRadius: 4, maxBarThickness: 26 },
         { label: 'ลิตรที่ได้จริง', data: actualData, backgroundColor: '#f0a324', borderRadius: 4, maxBarThickness: 26 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 20 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (item) => item.dataset.label + ': ' + fmt(item.parsed.y) + ' ลิตร'
+          }
+        },
+        datalabels: {
+          anchor: 'end',
+          align: 'end',
+          color: '#122621',
+          font: { family: 'JetBrains Mono', size: 10, weight: '600' },
+          formatter: (v) => v ? fmt(v) : ''
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(14,107,87,.08)' },
+          ticks: { callback: v => (v/1000) + 'k', font: { family: 'JetBrains Mono' } }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { family: 'Sarabun' } }
+        }
+      }
+    }
+  });
+}
+
+let productChartInstance = null;
+function renderProductChart(planSums, actualSums) {
+  const ctx = document.getElementById('productChart');
+  if (productChartInstance) productChartInstance.destroy();
+  productChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: PRODUCTS,
+      datasets: [
+        { label: 'ลิตรตามแผน', data: PRODUCTS.map(p => planSums[p] || 0), backgroundColor: '#0e6b57', borderRadius: 4, maxBarThickness: 26 },
+        { label: 'ลิตรที่ได้จริง', data: PRODUCTS.map(p => actualSums[p] || 0), backgroundColor: '#f0a324', borderRadius: 4, maxBarThickness: 26 }
       ]
     },
     options: {
