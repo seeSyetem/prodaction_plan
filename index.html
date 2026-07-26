@@ -192,20 +192,17 @@
   /* ===== แยกสีกลุ่ม "ลิตรตามแผน" กับ "ลิตรที่ได้จริง" ===== */
   thead th.group-plan{background:#0d5445}
   thead th.group-actual{background:#8a5400}
-  thead th.group-tray{background:#4a4a86}
   thead th.sub-plan{background:#e3f1ec; color:var(--brand-deep)}
   thead th.sub-actual{background:#fdf1dc; color:var(--amber-deep)}
-  thead th.sub-tray{background:#eceafc; color:#332f78}
   td.col-plan{background:#f2f9f6}
   td.col-actual{background:#fffaf0}
-  td.col-tray{background:#f7f6fd; color:#332f78}
   td.col-plan .qty-input, td.col-actual .qty-input{background:#fff}
   tbody tr:hover td.col-plan{background:#e3f1ec}
   tbody tr:hover td.col-actual{background:#fdf1dc}
-  tbody tr:hover td.col-tray{background:#eceafc}
   tfoot td.col-plan{background:#d7ece3; color:var(--brand-deep)}
   tfoot td.col-actual{background:var(--amber-pale)}
-  tfoot td.col-tray{background:#eceafc; color:#332f78}
+  td.col-actual .liters-part{color:var(--amber-deep); font-weight:700}
+  td.col-actual .tray-part{color:#6a4ab7; font-weight:600; margin-left:2px}
 
   /* ===== กราฟรายเดือน ===== */
   .chart-card{
@@ -344,8 +341,7 @@
           <tr>
             <th rowspan="2">#</th><th rowspan="2">เดือน</th>
             <th colspan="8" class="group-plan" align="center">ลิตรตามแผนตามผลิตภัณฑ์</th>
-            <th colspan="8" class="group-actual" align="center">ลิตรที่ได้จริงตามผลิตภัณฑ์</th>
-            <th colspan="8" class="group-tray" align="center">tray ที่ได้จริงตามผลิตภัณฑ์</th>
+            <th colspan="8" class="group-actual" align="center">ลิตรที่ได้จริง / tray ตามผลิตภัณฑ์</th>
           </tr>
           <tr id="monthlyProductHeaderRow"></tr>
         </thead>
@@ -713,7 +709,6 @@ function buildMonthlyHeader() {
   const row = document.getElementById('monthlyProductHeaderRow');
   PRODUCTS.forEach(p => { const th = document.createElement('th'); th.textContent = p; th.className = 'sub-plan'; row.appendChild(th); });
   PRODUCTS.forEach(p => { const th = document.createElement('th'); th.textContent = p; th.className = 'sub-actual'; row.appendChild(th); });
-  PRODUCTS.forEach(p => { const th = document.createElement('th'); th.textContent = p; th.className = 'sub-tray'; row.appendChild(th); });
 }
 
 async function loadMonthly(year) {
@@ -757,14 +752,12 @@ async function loadMonthly(year) {
   for (let month = 1; month <= 12; month++) {
     let monthTotal = 0;
     let cells = '';
-    let trayCells = '';
     PRODUCTS.forEach(p => {
       const v = monthProduct[month + '_' + p] || 0;
       monthTotal += v; productSums[p] += v;
-      cells += '<td class="col-actual">' + (v ? fmt(v) : '-') + '</td>';
       const tray = calcTray(v);
       traySums[p] += tray;
-      trayCells += '<td class="col-tray">' + (v ? fmt(tray) : '-') + '</td>';
+      cells += '<td class="col-actual">' + (v ? '<span class="liters-part">' + fmt(v) + '</span><span class="tray-part">/' + fmt(tray) + '</span>' : '-') + '</td>';
     });
 
     let monthPlanTotal = 0;
@@ -789,7 +782,7 @@ async function loadMonthly(year) {
     tbody.appendChild(tr);
 
     const trProduct = document.createElement('tr');
-    trProduct.innerHTML = '<td>' + month + '</td><td>' + MONTHS[month-1] + '</td>' + planCells + cells + trayCells;
+    trProduct.innerHTML = '<td>' + month + '</td><td>' + MONTHS[month-1] + '</td>' + planCells + cells;
     productTbody.appendChild(trProduct);
   }
 
@@ -804,8 +797,7 @@ async function loadMonthly(year) {
   const productFooter = document.getElementById('monthlyProductFooterRow');
   productFooter.innerHTML = '<td>#</td><td>รวม</td>';
   PRODUCTS.forEach(p => { const td = document.createElement('td'); td.className = 'col-plan'; td.textContent = fmt(planProductSums[p]); productFooter.appendChild(td); });
-  PRODUCTS.forEach(p => { const td = document.createElement('td'); td.className = 'col-actual'; td.textContent = fmt(productSums[p]); productFooter.appendChild(td); });
-  PRODUCTS.forEach(p => { const td = document.createElement('td'); td.className = 'col-tray'; td.textContent = fmt(traySums[p]); productFooter.appendChild(td); });
+  PRODUCTS.forEach(p => { const td = document.createElement('td'); td.className = 'col-actual'; td.innerHTML = '<span class="liters-part">' + fmt(productSums[p]) + '</span><span class="tray-part">/' + fmt(traySums[p]) + '</span>'; productFooter.appendChild(td); });
 
   renderSummaryCards(grandTotal, grandTarget);
   renderMonthlyChart(chartPlan, chartActual);
