@@ -223,17 +223,17 @@
 <body>
 
 <header>
-  <h1><i class="fas fa-industry"></i>ยอดผลิตประจำปี</h1>
+  <h1><i class="fas fa-industry"></i> ยอดผลิตประจำปี</h1>
   <div class="tabs">
-    <button id="tabBtnDaily" class="active">รายวัน</button>
-    <button id="tabBtnMonthly">รายเดือน</button>
+    <button id="tabBtnDaily">รายวัน</button>
+    <button id="tabBtnMonthly" class="active">รายเดือน</button>
   </div>
 </header>
 
 <main>
 
   <!-- ===== แท็บรายวัน ===== -->
-  <section class="panel active" id="panelDaily">
+  <section class="panel" id="panelDaily">
     <div class="daily-form" id="dailyForm">
       <!-- <div class="field">
         <label>วันที่ผลิต</label>
@@ -290,7 +290,7 @@
   </section>
 
   <!-- ===== แท็บรายเดือน ===== -->
-  <section class="panel" id="panelMonthly">
+  <section class="panel active" id="panelMonthly">
     <div class="toolbar">
       <select id="yearSelect"></select>
     </div>
@@ -395,14 +395,22 @@ function showSaveIndicator(state) {
 }
 
 /* ============ TABS ============ */
+const ADMIN_PASSWORD = "see1234";
 document.getElementById('tabBtnDaily').addEventListener('click', () => switchTab('daily'));
 document.getElementById('tabBtnMonthly').addEventListener('click', () => switchTab('monthly'));
 function switchTab(name) {
+  if (name === 'daily' && sessionStorage.getItem('isAdmin') !== 'true') {
+    const input = prompt('หน้ารายวันสำหรับ admin เท่านั้น กรุณาใส่รหัสผ่าน:');
+    if (input === null) return; // ยกเลิก
+    if (input !== ADMIN_PASSWORD) { alert('รหัสผ่านไม่ถูกต้อง'); return; }
+    sessionStorage.setItem('isAdmin', 'true');
+  }
   document.getElementById('panelDaily').classList.toggle('active', name === 'daily');
   document.getElementById('panelMonthly').classList.toggle('active', name === 'monthly');
   document.getElementById('tabBtnDaily').classList.toggle('active', name === 'daily');
   document.getElementById('tabBtnMonthly').classList.toggle('active', name === 'monthly');
   if (name === 'monthly') loadMonthly(currentYear);
+  if (name === 'daily') loadDaily(currentYM);
 }
 
 /* ============ แท็บรายวัน ============ */
@@ -898,8 +906,8 @@ document.getElementById('yearSelect').addEventListener('change', (e) => loadMont
   buildDailyForm();
   buildMonthlyHeader();
   await populateMonthSelect();
-  await loadDaily(currentYM);
   await populateYearSelect();
+  await loadMonthly(currentYear);
 })();
 </script>
 </body>
