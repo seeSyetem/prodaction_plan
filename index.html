@@ -224,8 +224,11 @@
   .chart-card-head > span{font-family:var(--display); font-weight:600; font-size:14px; color:var(--brand-deep); display:flex; align-items:center; gap:8px}
   .chart-card-head > span i{color:var(--amber-deep)}
   .chart-legend{display:flex; gap:16px; font-size:12.5px; color:var(--ink-soft)}
-  .chart-legend span{display:flex; align-items:center; gap:6px}
+  .chart-legend span{display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; transition:.15s}
+  .chart-legend span:hover{color:var(--brand-deep)}
+  .chart-legend span.inactive{opacity:.4; text-decoration:line-through}
   .chart-legend .dot{width:10px; height:10px; border-radius:3px; display:inline-block}
+  .chart-legend .dash{width:14px; height:0; border-top:2px dashed var(--ink-soft); display:inline-block}
   .dot-plan{background:var(--brand)}
   .dot-actual{background:var(--amber)}
   .chart-tools{display:flex; align-items:center; gap:8px; margin-left:auto}
@@ -366,9 +369,10 @@
     <div class="chart-card">
       <div class="chart-card-head">
         <span><i class="fas fa-chart-column"></i> แผนเทียบยอดจริง รายเดือน</span>
-        <div class="chart-legend">
-          <span><i class="dot dot-plan"></i>ลิตรตามแผน</span>
-          <span><i class="dot dot-actual"></i>ลิตรที่ได้จริง</span>
+        <div class="chart-legend" id="monthlyLegend">
+          <span data-index="0"><i class="dot dot-plan"></i>ลิตรตามแผน</span>
+          <span data-index="1"><i class="dot dot-actual"></i>ลิตรที่ได้จริง</span>
+          <span data-index="2"><i class="dash"></i>ค่าเฉลี่ย</span>
         </div>
         <div class="chart-tools">
           <div class="chart-type-toggle" id="monthlyTypeToggle">
@@ -387,9 +391,10 @@
     <div class="chart-card">
       <div class="chart-card-head">
         <span><i class="fas fa-layer-group"></i> แผนเทียบยอดจริง แยกตามผลิตภัณฑ์</span>
-        <div class="chart-legend">
-          <span><i class="dot dot-plan"></i>ลิตรตามแผน</span>
-          <span><i class="dot dot-actual"></i>ลิตรที่ได้จริง</span>
+        <div class="chart-legend" id="productLegend">
+          <span data-index="0"><i class="dot dot-plan"></i>ลิตรตามแผน</span>
+          <span data-index="1"><i class="dot dot-actual"></i>ลิตรที่ได้จริง</span>
+          <span data-index="2"><i class="dash"></i>ค่าเฉลี่ย</span>
         </div>
         <div class="chart-tools">
           <div class="chart-type-toggle" id="productTypeToggle">
@@ -908,20 +913,53 @@ async function loadMonthly(year) {
 
 if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
 
+const currentMonthHighlightPlugin = {
+  id: 'currentMonthHighlight',
+  beforeDatasetsDraw(chart, args, opts) {
+    if (!opts || opts.index == null) return;
+    const { ctx, chartArea, scales } = chart;
+    const xScale = scales.x;
+    if (!xScale || !chartArea) return;
+    const idx = opts.index;
+    const count = xScale.ticks.length || 1;
+    const bandWidth = (chartArea.right - chartArea.left) / count;
+    const centerX = xScale.getPixelForValue(idx);
+    const left = centerX - bandWidth / 2;
+    ctx.save();
+    ctx.fillStyle = opts.color || 'rgba(240,163,36,.14)';
+    ctx.fillRect(left, chartArea.top, bandWidth, chartArea.bottom - chartArea.top);
+    ctx.restore();
+  }
+};
+Chart.register(currentMonthHighlightPlugin);
+
+function average(arr) {
+  if (!arr.length) return 0;
+  return arr.reduce((a, b) => a + b, 0) / arr.length;
+}
+
 function buildChartDatasets(type, planData, actualData) {
+  const avg = average(actualData);
+  const avgDataset = {
+    label: 'ค่าเฉลี่ย', data: actualData.map(() => avg), type: 'line',
+    borderColor: '#8a94a6', borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0,
+    fill: false, tension: 0, order: -1, datalabels: { display: false }
+  };
   if (type === 'line') {
     return [
       { label: 'ลิตรตามแผน', data: planData, borderColor: '#0e6b57', backgroundColor: 'rgba(14,107,87,.12)', pointBackgroundColor: '#0e6b57', pointRadius: 3, borderWidth: 2, tension: 0.3, fill: true },
-      { label: 'ลิตรที่ได้จริง', data: actualData, borderColor: '#f0a324', backgroundColor: 'rgba(240,163,36,.15)', pointBackgroundColor: '#f0a324', pointRadius: 3, borderWidth: 2, tension: 0.3, fill: true }
+      { label: 'ลิตรที่ได้จริง', data: actualData, borderColor: '#f0a324', backgroundColor: 'rgba(240,163,36,.15)', pointBackgroundColor: '#f0a324', pointRadius: 3, borderWidth: 2, tension: 0.3, fill: true },
+      avgDataset
     ];
   }
   return [
     { label: 'ลิตรตามแผน', data: planData, backgroundColor: '#0e6b57', borderRadius: 4, maxBarThickness: 26 },
-    { label: 'ลิตรที่ได้จริง', data: actualData, backgroundColor: '#f0a324', borderRadius: 4, maxBarThickness: 26 }
+    { label: 'ลิตรที่ได้จริง', data: actualData, backgroundColor: '#f0a324', borderRadius: 4, maxBarThickness: 26 },
+    avgDataset
   ];
 }
 
-function chartCommonOptions(loadingEl, type) {
+function chartCommonOptions(loadingEl, type, highlightIndex) {
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -931,6 +969,7 @@ function chartCommonOptions(loadingEl, type) {
     },
     plugins: {
       legend: { display: false },
+      currentMonthHighlight: { index: highlightIndex ?? null },
       tooltip: {
         callbacks: {
           label: (item) => item.dataset.label + ': ' + fmt(item.parsed.y) + ' ลิตร'
@@ -968,7 +1007,7 @@ function chartCommonOptions(loadingEl, type) {
 }
 
 let monthlyChartInstance = null;
-let monthlyChartType = 'bar';
+let monthlyChartType = localStorage.getItem('chartType_monthly') || 'bar';
 let monthlyChartData = { plan: [], actual: [] };
 
 function renderMonthlyChart(planData, actualData) {
@@ -985,15 +1024,17 @@ function drawMonthlyChart() {
   if (emptyEl) emptyEl.classList.toggle('show', !hasData);
   if (monthlyChartInstance) monthlyChartInstance.destroy();
   if (loadingEl) loadingEl.classList.add('show');
+  const now = new Date();
+  const highlightIndex = (currentYear === now.getFullYear()) ? now.getMonth() : null;
   monthlyChartInstance = new Chart(ctx, {
     type: monthlyChartType,
     data: { labels: MONTHS, datasets: buildChartDatasets(monthlyChartType, planData, actualData) },
-    options: chartCommonOptions(loadingEl, monthlyChartType)
+    options: chartCommonOptions(loadingEl, monthlyChartType, highlightIndex)
   });
 }
 
 let productChartInstance = null;
-let productChartType = 'bar';
+let productChartType = localStorage.getItem('chartType_product') || 'bar';
 let productChartData = { plan: [], actual: [] };
 
 function renderProductChart(planSums, actualSums) {
@@ -1019,13 +1060,14 @@ function drawProductChart() {
   });
 }
 
-function setupChartControls(toggleId, exportId, getType, setType, redraw, filename) {
+function setupChartControls(toggleId, exportId, getType, setType, redraw, filename, storageKey) {
   const toggleEl = document.getElementById(toggleId);
   if (toggleEl) {
     toggleEl.addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-type]');
       if (!btn) return;
       setType(btn.dataset.type);
+      if (storageKey) { try { localStorage.setItem(storageKey, btn.dataset.type); } catch (e) {} }
       [...toggleEl.children].forEach(b => b.classList.toggle('active', b === btn));
       redraw();
     });
@@ -1043,16 +1085,45 @@ function setupChartControls(toggleId, exportId, getType, setType, redraw, filena
   }
 }
 
+function syncToggleActive(toggleId, type) {
+  const el = document.getElementById(toggleId);
+  if (!el) return;
+  [...el.children].forEach(b => b.classList.toggle('active', b.dataset.type === type));
+}
+
+function setupChartLegend(legendId, getChart) {
+  const legendEl = document.getElementById(legendId);
+  if (!legendEl) return;
+  legendEl.addEventListener('click', (e) => {
+    const span = e.target.closest('span[data-index]');
+    if (!span) return;
+    const chart = getChart();
+    if (!chart) return;
+    const idx = parseInt(span.dataset.index, 10);
+    const meta = chart.getDatasetMeta(idx);
+    const isHidden = meta.hidden === null ? (chart.data.datasets[idx].hidden === true) : meta.hidden;
+    meta.hidden = !isHidden;
+    span.classList.toggle('inactive', meta.hidden);
+    chart.update();
+  });
+}
+
+syncToggleActive('monthlyTypeToggle', monthlyChartType);
+syncToggleActive('productTypeToggle', productChartType);
+
 setupChartControls(
   'monthlyTypeToggle', 'monthlyExportBtn',
   () => monthlyChartInstance, (t) => { monthlyChartType = t; }, drawMonthlyChart,
-  'กราฟรายเดือน.png'
+  'กราฟรายเดือน.png', 'chartType_monthly'
 );
 setupChartControls(
   'productTypeToggle', 'productExportBtn',
   () => productChartInstance, (t) => { productChartType = t; }, drawProductChart,
-  'กราฟตามผลิตภัณฑ์.png'
+  'กราฟตามผลิตภัณฑ์.png', 'chartType_product'
 );
+
+setupChartLegend('monthlyLegend', () => monthlyChartInstance);
+setupChartLegend('productLegend', () => productChartInstance);
 
 function renderSummaryCards(grandTotal, grandTarget) {
   const wrap = document.getElementById('summaryCards');
