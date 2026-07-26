@@ -921,11 +921,11 @@ function buildChartDatasets(type, planData, actualData) {
   ];
 }
 
-function chartCommonOptions(loadingEl) {
+function chartCommonOptions(loadingEl, type) {
   return {
     responsive: true,
     maintainAspectRatio: false,
-    layout: { padding: { top: 20 } },
+    layout: { padding: { top: 24, bottom: type === 'line' ? 10 : 0 } },
     animation: {
       onComplete: () => { if (loadingEl) loadingEl.classList.remove('show'); }
     },
@@ -936,7 +936,15 @@ function chartCommonOptions(loadingEl) {
           label: (item) => item.dataset.label + ': ' + fmt(item.parsed.y) + ' ลิตร'
         }
       },
-      datalabels: {
+      datalabels: type === 'line' ? {
+        anchor: (ctx) => ctx.datasetIndex === 0 ? 'end' : 'start',
+        align: (ctx) => ctx.datasetIndex === 0 ? 'top' : 'bottom',
+        offset: 4,
+        clamp: true,
+        color: (ctx) => ctx.datasetIndex === 0 ? '#0a3d33' : '#7a4d00',
+        font: (ctx) => ({ family: 'JetBrains Mono', size: ctx.chart.width < 500 ? 8 : 10, weight: '600' }),
+        formatter: (v) => v ? fmt(v) : ''
+      } : {
         anchor: 'end',
         align: 'end',
         color: (ctx) => ctx.datasetIndex === 0 ? '#0a3d33' : '#7a4d00',
@@ -980,7 +988,7 @@ function drawMonthlyChart() {
   monthlyChartInstance = new Chart(ctx, {
     type: monthlyChartType,
     data: { labels: MONTHS, datasets: buildChartDatasets(monthlyChartType, planData, actualData) },
-    options: chartCommonOptions(loadingEl)
+    options: chartCommonOptions(loadingEl, monthlyChartType)
   });
 }
 
@@ -1007,7 +1015,7 @@ function drawProductChart() {
   productChartInstance = new Chart(ctx, {
     type: productChartType,
     data: { labels: PRODUCTS, datasets: buildChartDatasets(productChartType, planArr, actualArr) },
-    options: chartCommonOptions(loadingEl)
+    options: chartCommonOptions(loadingEl, productChartType)
   });
 }
 
