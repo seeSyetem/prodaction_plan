@@ -237,6 +237,7 @@
             <th rowspan="2">ลิตรที่ได้จริง</th>
             <th rowspan="2">tray ที่ได้จริง</th>
             <th rowspan="2">% สำเร็จ</th>
+            <th colspan="8">ลิตรตามแผนตามผลิตภัณฑ์</th>
             <th colspan="8">ลิตรที่ได้จริงตามผลิตภัณฑ์</th>
             <th rowspan="2">ขวด/วัน</th>
             <th rowspan="2"></th>
@@ -265,6 +266,7 @@
             <th rowspan="2">ลิตรที่ได้จริง</th>
             <th rowspan="2">tray ที่ได้จริง</th>
             <th rowspan="2">% สำเร็จ</th>
+            <th colspan="8">ลิตรตามแผนตามผลิตภัณฑ์</th>
             <th colspan="8">ลิตรที่ได้จริงตามผลิตภัณฑ์</th>
             <th rowspan="2">ขวด/เดือน</th>
           </tr>
@@ -286,6 +288,7 @@ const SUPABASE_URL = "https://avwifsxjhomnufwbwjop.supabase.co";
 const SUPABASE_KEY = "sb_publishable_ef0aI4K8lJxRPt3A71DOFA_xYGP7_bx";
 const TABLE = "daily_production";       // รายวัน: [prod_date, product, qty]
 const PLAN_TABLE = "daily_plan";        // รายวัน: [prod_date (unique), target_liters, actual_liters]
+const PLAN_PRODUCT_TABLE = "daily_plan_product"; // รายวัน: [prod_date, product, qty] ลิตรตามแผนต่อสินค้า
 const BOTTLE_SIZE = 0.315;               // ลิตรต่อขวด (คอลัมน์ ขวด/วัน, ขวด/เดือน)
 const TRAY_BOTTLE_SIZE = 0.315;         // ลิตรต่อขวด สำหรับคำนวณ tray ที่ได้จริงโดยเฉพาะ
 function calcTray(liters) { return (Number(liters) || 0) / TRAY_BOTTLE_SIZE / 24; }
@@ -390,6 +393,7 @@ body.innerHTML = planRow + actualRow;
 function buildDailyHeader() {
   const row = document.getElementById('dailyHeaderRow');
   PRODUCTS.forEach(p => { const th = document.createElement('th'); th.textContent = p; row.appendChild(th); });
+  PRODUCTS.forEach(p => { const th = document.createElement('th'); th.textContent = p; row.appendChild(th); });
 }
 
 async function populateMonthSelect() {
@@ -421,25 +425,32 @@ async function loadDaily(ym) {
   const first = ym + '-01';
   const last = ym + '-' + pad2(daysInMonth(y,m));
 
-  let prodRows = [], planRows = [];
+  let prodRows = [], planRows = [], planProductRows = [];
   try {
     prodRows = await supaFetch(TABLE + '?prod_date=gte.' + first + '&prod_date=lte.' + last + '&select=prod_date,product,qty&order=prod_date.asc');
   } catch (e) { console.error(e); }
   try {
     planRows = await supaFetch(PLAN_TABLE + '?prod_date=gte.' + first + '&prod_date=lte.' + last + '&select=prod_date,target_liters');
   } catch (e) { console.error(e); }
+  try {
+    planProductRows = await supaFetch(PLAN_PRODUCT_TABLE + '?prod_date=gte.' + first + '&prod_date=lte.' + last + '&select=prod_date,product,qty');
+  } catch (e) { console.error(e); }
 
   const byDate = {};
   (prodRows || []).forEach(r => {
-    if (!byDate[r.prod_date]) byDate[r.prod_date] = { values: {}, target: 0 };
+    if (!byDate[r.prod_date]) byDate[r.prod_date] = { values: {}, target: 0, planValues: {} };
     byDate[r.prod_date].values[r.product] = parseFloat(r.qty) || 0;
   });
   (planRows || []).forEach(r => {
-    if (!byDate[r.prod_date]) byDate[r.prod_date] = { values: {}, target: 0 };
+    if (!byDate[r.prod_date]) byDate[r.prod_date] = { values: {}, target: 0, planValues: {} };
     byDate[r.prod_date].target = parseFloat(r.target_liters) || 0;
   });
+  (planProductRows || []).forEach(r => {
+    if (!byDate[r.prod_date]) byDate[r.prod_date] = { values: {}, target: 0, planValues: {} };
+    byDate[r.prod_date].planValues[r.product] = parseFloat(r.qty) || 0;
+  });
 
-  dailyRows = Object.keys(byDate).sort().map(d => ({ date: d, values: byDate[d].values, target: byDate[d].target }));
+  dailyRows = Object.keys(byDate).sort().map(d => ({ date: d, values: byDate[d].values, target: byDate[d].target, planValues: byDate[d].planValues }));
   renderDailyTable();
 }
 
@@ -447,6 +458,7 @@ function renderDailyTable() {
   const tbody = document.getElementById('dailyBody');
   tbody.innerHTML = '';
   const productSums = {}; PRODUCTS.forEach(p => productSums[p] = 0);
+  const planProductSums = {}; PRODUCTS.forEach(p => planProductSums[p] = 0);
   let grandTotal = 0, grandTarget = 0;
 
   dailyRows.forEach((row, idx) => {
@@ -459,21 +471,32 @@ function renderDailyTable() {
       rowTotal += v; productSums[p] += v;
       cellsHtml += '<td><input type="number" min="0" class="qty-input" value="' + (v || '') + '" data-date="' + row.date + '" data-product="' + p + '"></td>';
     });
-    grandTotal += rowTotal; grandTarget += row.target;
+
+    let rowPlanTotal = 0;
+    let planCellsHtml = '';
+    PRODUCTS.forEach(p => {
+      const v = row.planValues[p] || 0;
+      rowPlanTotal += v; planProductSums[p] += v;
+      planCellsHtml += '<td><input type="number" min="0" class="qty-input plan-qty-input" value="' + (v || '') + '" data-date="' + row.date + '" data-product="' + p + '"></td>';
+    });
+    const displayTarget = rowPlanTotal || row.target; // ถ้ายังไม่ได้กรอกรายสินค้า ใช้ค่ารวมเดิม (ถ้ามี)
+
+    grandTotal += rowTotal; grandTarget += displayTarget;
 
     tr.innerHTML = '<td>' + (idx+1) + '</td><td>' + dateLabel + '</td>' +
-      '<td><input type="number" min="0" class="qty-input target-input" value="' + (row.target || '') + '" data-date="' + row.date + '" style="width:90px"></td>' +
+      '<td class="plan-cell">' + (displayTarget ? fmt(displayTarget) : '-') + '</td>' +
       '<td class="total-cell">' + (rowTotal ? fmt(rowTotal) : '-') + '</td>' +
       '<td class="bottle-cell">' + (rowTotal ? fmt(calcTray(rowTotal)) : '-') + '</td>' +
-      '<td class="pct-cell">' + fmtPct(rowTotal, row.target) + '</td>' +
+      '<td class="pct-cell">' + fmtPct(rowTotal, displayTarget) + '</td>' +
+      planCellsHtml +
       cellsHtml +
       '<td class="bottle-cell">' + (rowTotal ? fmt(rowTotal / BOTTLE_SIZE) : '-') + '</td>' +
       '<td><button class="del-btn" data-date="' + row.date + '"><i class="fas fa-trash"></i></button></td>';
     tbody.appendChild(tr);
   });
 
-  tbody.querySelectorAll('.qty-input:not(.target-input)').forEach(inp => inp.addEventListener('change', onDailyCellChange));
-  tbody.querySelectorAll('.target-input').forEach(inp => inp.addEventListener('change', onTargetChange));
+  tbody.querySelectorAll('.qty-input:not(.plan-qty-input)').forEach(inp => inp.addEventListener('change', onDailyCellChange));
+  tbody.querySelectorAll('.plan-qty-input').forEach(inp => inp.addEventListener('change', onPlanProductChange));
   tbody.querySelectorAll('.del-btn').forEach(btn => btn.addEventListener('click', onDeleteDay));
 
   const footer = document.getElementById('dailyFooterRow');
@@ -482,6 +505,7 @@ function renderDailyTable() {
     '<td>' + fmt(grandTotal) + '</td>' +
     '<td>' + fmt(calcTray(grandTotal)) + '</td>' +
     '<td>' + fmtPct(grandTotal, grandTarget) + '</td>';
+  PRODUCTS.forEach(p => { const td = document.createElement('td'); td.textContent = fmt(planProductSums[p]); footer.appendChild(td); });
   PRODUCTS.forEach(p => { const td = document.createElement('td'); td.textContent = fmt(productSums[p]); footer.appendChild(td); });
   const tdB = document.createElement('td'); tdB.textContent = fmt(grandTotal / BOTTLE_SIZE); footer.appendChild(tdB);
   footer.appendChild(document.createElement('td'));
@@ -502,15 +526,22 @@ async function onDailyCellChange(e) {
   } catch (err) { console.error(err); showSaveIndicator('error'); }
 }
 
-async function onTargetChange(e) {
+async function onPlanProductChange(e) {
   const input = e.target;
-  const date = input.dataset.date;
-  const target = parseFloat(input.value) || 0;
+  const date = input.dataset.date, product = input.dataset.product;
+  const qty = parseFloat(input.value) || 0;
   showSaveIndicator('saving');
   try {
+    await supaFetch(PLAN_PRODUCT_TABLE + '?on_conflict=prod_date,product', {
+      method: 'POST', prefer: 'resolution=merge-duplicates',
+      body: JSON.stringify({ prod_date: date, product, qty })
+    });
+    // sync ยอดรวมแผนของวันนั้นไปที่ daily_plan ด้วย (ใช้อ้างอิงยอดรวมที่อื่น)
+    const rows = await supaFetch(PLAN_PRODUCT_TABLE + '?prod_date=eq.' + date + '&select=qty');
+    const total = (rows || []).reduce((s, r) => s + (parseFloat(r.qty) || 0), 0);
     await supaFetch(PLAN_TABLE + '?on_conflict=prod_date', {
       method: 'POST', prefer: 'resolution=merge-duplicates',
-      body: JSON.stringify({ prod_date: date, target_liters: target })
+      body: JSON.stringify({ prod_date: date, target_liters: total })
     });
     showSaveIndicator('saved');
     await loadDaily(currentYM);
@@ -525,6 +556,7 @@ async function onDeleteDay(e) {
   try {
     await supaFetch(TABLE + '?prod_date=eq.' + date, { method: 'DELETE' });
     await supaFetch(PLAN_TABLE + '?prod_date=eq.' + date, { method: 'DELETE' });
+    await supaFetch(PLAN_PRODUCT_TABLE + '?prod_date=eq.' + date, { method: 'DELETE' });
     showSaveIndicator('saved');
     await loadDaily(currentYM);
   } catch (err) { console.error(err); showSaveIndicator('error'); }
@@ -555,6 +587,15 @@ async function saveTodayEntry() {
                     prod_date: date,
                     product: p,
                     qty: actualQty
+                })
+            });
+            await supaFetch(PLAN_PRODUCT_TABLE + "?on_conflict=prod_date,product", {
+                method: "POST",
+                prefer: "resolution=merge-duplicates",
+                body: JSON.stringify({
+                    prod_date: date,
+                    product: p,
+                    qty: planQty
                 })
             });
         }
@@ -602,6 +643,7 @@ document.getElementById("dailyMonthSelect").addEventListener("change", e => load
 function buildMonthlyHeader() {
   const row = document.getElementById('monthlyHeaderRow');
   PRODUCTS.forEach(p => { const th = document.createElement('th'); th.textContent = p; row.appendChild(th); });
+  PRODUCTS.forEach(p => { const th = document.createElement('th'); th.textContent = p; row.appendChild(th); });
 }
 
 async function loadMonthly(year) {
@@ -609,13 +651,15 @@ async function loadMonthly(year) {
   const first = year + '-01-01';
   const last = year + '-12-31';
 
-  let prodRows = [], planRows = [];
+  let prodRows = [], planRows = [], planProductRows = [];
   try { prodRows = await supaFetch(TABLE + '?prod_date=gte.' + first + '&prod_date=lte.' + last + '&select=prod_date,product,qty'); }
   catch (e) { console.error(e); }
   try { planRows = await supaFetch(PLAN_TABLE + '?prod_date=gte.' + first + '&prod_date=lte.' + last + '&select=prod_date,target_liters'); }
   catch (e) { console.error(e); }
+  try { planProductRows = await supaFetch(PLAN_PRODUCT_TABLE + '?prod_date=gte.' + first + '&prod_date=lte.' + last + '&select=prod_date,product,qty'); }
+  catch (e) { console.error(e); }
 
-  const monthProduct = {}, monthTarget = {};
+  const monthProduct = {}, monthTarget = {}, monthPlanProduct = {};
   (prodRows || []).forEach(r => {
     const month = parseInt(r.prod_date.slice(5,7), 10);
     const key = month + '_' + r.product;
@@ -625,10 +669,16 @@ async function loadMonthly(year) {
     const month = parseInt(r.prod_date.slice(5,7), 10);
     monthTarget[month] = (monthTarget[month] || 0) + (parseFloat(r.target_liters) || 0);
   });
+  (planProductRows || []).forEach(r => {
+    const month = parseInt(r.prod_date.slice(5,7), 10);
+    const key = month + '_' + r.product;
+    monthPlanProduct[key] = (monthPlanProduct[key] || 0) + (parseFloat(r.qty) || 0);
+  });
 
   const tbody = document.getElementById('monthlyBody');
   tbody.innerHTML = '';
   const productSums = {}; PRODUCTS.forEach(p => productSums[p] = 0);
+  const planProductSums = {}; PRODUCTS.forEach(p => planProductSums[p] = 0);
   let grandTotal = 0, grandTarget = 0;
 
   for (let month = 1; month <= 12; month++) {
@@ -639,7 +689,15 @@ async function loadMonthly(year) {
       monthTotal += v; productSums[p] += v;
       cells += '<td>' + (v ? fmt(v) : '-') + '</td>';
     });
-    const target = monthTarget[month] || 0;
+
+    let monthPlanTotal = 0;
+    let planCells = '';
+    PRODUCTS.forEach(p => {
+      const v = monthPlanProduct[month + '_' + p] || 0;
+      monthPlanTotal += v; planProductSums[p] += v;
+      planCells += '<td>' + (v ? fmt(v) : '-') + '</td>';
+    });
+    const target = monthPlanTotal || (monthTarget[month] || 0);
     grandTotal += monthTotal; grandTarget += target;
 
     const tr = document.createElement('tr');
@@ -648,6 +706,7 @@ async function loadMonthly(year) {
       '<td class="total-cell">' + (monthTotal ? fmt(monthTotal) : '-') + '</td>' +
       '<td class="bottle-cell">' + (monthTotal ? fmt(calcTray(monthTotal)) : '-') + '</td>' +
       '<td class="pct-cell">' + fmtPct(monthTotal, target) + '</td>' +
+      planCells +
       cells +
       '<td class="bottle-cell">' + (monthTotal ? fmt(monthTotal / BOTTLE_SIZE) : '-') + '</td>';
     tbody.appendChild(tr);
@@ -659,6 +718,7 @@ async function loadMonthly(year) {
     '<td>' + fmt(grandTotal) + '</td>' +
     '<td>' + fmt(calcTray(grandTotal)) + '</td>' +
     '<td>' + fmtPct(grandTotal, grandTarget) + '</td>';
+  PRODUCTS.forEach(p => { const td = document.createElement('td'); td.textContent = fmt(planProductSums[p]); footer.appendChild(td); });
   PRODUCTS.forEach(p => { const td = document.createElement('td'); td.textContent = fmt(productSums[p]); footer.appendChild(td); });
   const tdB = document.createElement('td'); tdB.textContent = fmt(grandTotal / BOTTLE_SIZE); footer.appendChild(tdB);
 
