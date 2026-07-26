@@ -231,13 +231,17 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr id="dailyHeaderRow">
-            <th>#</th><th>วันที่</th>
-            <th>ลิตรตามแผน</th>
-            <th>ลิตรที่ได้จริง</th>
-            <th>tray ที่ได้จริง</th>
-            <th>% สำเร็จ</th>
+          <tr>
+            <th rowspan="2">#</th><th rowspan="2">วันที่</th>
+            <th rowspan="2">ลิตรตามแผน</th>
+            <th rowspan="2">ลิตรที่ได้จริง</th>
+            <th rowspan="2">tray ที่ได้จริง</th>
+            <th rowspan="2">% สำเร็จ</th>
+            <th colspan="8">ลิตรที่ได้จริงตามผลิตภัณฑ์</th>
+            <th rowspan="2">ขวด/วัน</th>
+            <th rowspan="2"></th>
           </tr>
+          <tr id="dailyHeaderRow"></tr>
         </thead>
         <tbody id="dailyBody"></tbody>
         <tfoot><tr id="dailyFooterRow"></tr></tfoot>
@@ -255,13 +259,16 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr id="monthlyHeaderRow">
-            <th>#</th><th>เดือน</th>
-            <th>ลิตรตามแผน</th>
-            <th>ลิตรที่ได้จริง</th>
-            <th>tray ที่ได้จริง</th>
-            <th>% สำเร็จ</th>
+          <tr>
+            <th rowspan="2">#</th><th rowspan="2">เดือน</th>
+            <th rowspan="2">ลิตรตามแผน</th>
+            <th rowspan="2">ลิตรที่ได้จริง</th>
+            <th rowspan="2">tray ที่ได้จริง</th>
+            <th rowspan="2">% สำเร็จ</th>
+            <th colspan="8">ลิตรที่ได้จริงตามผลิตภัณฑ์</th>
+            <th rowspan="2">ขวด/เดือน</th>
           </tr>
+          <tr id="monthlyHeaderRow"></tr>
         </thead>
         <tbody id="monthlyBody"></tbody>
         <tfoot><tr id="monthlyFooterRow"></tr></tfoot>
@@ -383,8 +390,6 @@ body.innerHTML = planRow + actualRow;
 function buildDailyHeader() {
   const row = document.getElementById('dailyHeaderRow');
   PRODUCTS.forEach(p => { const th = document.createElement('th'); th.textContent = p; row.appendChild(th); });
-  const th = document.createElement('th'); th.textContent = 'ขวด/วัน'; row.appendChild(th);
-  row.appendChild(document.createElement('th')); // ปุ่มลบ
 }
 
 async function populateMonthSelect() {
@@ -597,7 +602,6 @@ document.getElementById("dailyMonthSelect").addEventListener("change", e => load
 function buildMonthlyHeader() {
   const row = document.getElementById('monthlyHeaderRow');
   PRODUCTS.forEach(p => { const th = document.createElement('th'); th.textContent = p; row.appendChild(th); });
-  const th = document.createElement('th'); th.textContent = 'ขวด/เดือน'; row.appendChild(th);
 }
 
 async function loadMonthly(year) {
