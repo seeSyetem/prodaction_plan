@@ -225,11 +225,7 @@
   .chart-legend .dot{width:10px; height:10px; border-radius:3px; display:inline-block}
   .dot-plan{background:var(--brand)}
   .dot-actual{background:var(--amber)}
-  .chart-box{position:relative; width:100%; height:320px; overflow-x:auto; overflow-y:hidden}
-  .chart-box canvas{min-width:100%}
-  @media (max-width:600px){
-    .chart-box canvas{min-width:640px}
-  }
+  .chart-box{position:relative; width:100%; height:320px}
   .chart-empty{
     position:absolute; inset:0; display:none; align-items:center; justify-content:center;
     flex-direction:column; gap:8px; color:var(--ink-soft); text-align:center; pointer-events:none;
