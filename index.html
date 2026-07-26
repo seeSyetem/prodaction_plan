@@ -226,6 +226,32 @@
   .dot-plan{background:var(--brand)}
   .dot-actual{background:var(--amber)}
   .chart-box{position:relative; width:100%; height:320px}
+
+  /* ===== มือถือ ===== */
+  @media (max-width: 640px){
+    header{padding:14px 16px; flex-direction:column; align-items:flex-start}
+    header h1{font-size:16px}
+    header h1 i{width:28px; height:28px; font-size:13px}
+    .tabs{width:100%}
+    .tabs button{flex:1; padding:10px 8px; font-size:12.5px}
+    main{padding:16px 10px 50px}
+    .cards{grid-template-columns:repeat(2,1fr); gap:10px}
+    .card{padding:12px 14px}
+    .card .value{font-size:20px}
+    .toolbar{gap:8px}
+    .toolbar select{flex:1; min-width:0}
+    .btn-export{margin-left:0; width:100%; justify-content:center}
+    .daily-form{padding:16px}
+    .daily-form input[type=date]{width:100%; max-width:none}
+    #entryDate{max-width:none}
+    .chart-card{padding:14px 12px 10px}
+    .chart-card-head{flex-direction:column; align-items:flex-start; gap:6px}
+    .chart-box{height:240px}
+    table.table-simple thead th{padding:9px 8px; font-size:11.5px}
+    table.table-simple tbody td{padding:9px 8px; font-size:12.5px}
+    .table.text-center input, table.table input{width:100%; min-width:60px}
+    .save-indicator{right:12px; bottom:12px; left:12px; text-align:center; justify-content:center}
+  }
 </style>
 </head>
 <body>
@@ -286,7 +312,7 @@
             <th>ลิตรตามแผน</th>
             <th>ลิตรที่ได้จริง</th>
             <th>tray ที่ได้จริง</th>
-            <th>% Yild ที่ได้</th>
+            <th>% สำเร็จ</th>
             <th>ขวด/วัน</th>
             <th></th>
           </tr>
@@ -333,7 +359,7 @@
             <th>ลิตรตามแผน</th>
             <th>ลิตรที่ได้จริง</th>
             <th>tray ที่ได้จริง</th>
-            <th>% Yild ที่ได้</th>
+            <th>% สำเร็จ</th>
             <th>ขวด/เดือน</th>
           </tr>
         </thead>
