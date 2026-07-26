@@ -374,7 +374,6 @@
           <span data-index="0"><i class="dot dot-plan"></i>ลิตรตามแผน</span>
           <span data-index="1"><i class="dot dot-actual"></i>ลิตรที่ได้จริง</span>
           <span data-index="2"><i class="dash"></i>ค่าเฉลี่ย</span>
-          <span data-index="3"><i class="dot dot-yield"></i>% สำเร็จ</span>
         </div>
         <div class="chart-tools">
           <div class="chart-type-toggle" id="monthlyTypeToggle">
@@ -388,6 +387,23 @@
         <canvas id="monthlyChart"></canvas>
         <div class="chart-loading" id="monthlyChartLoading"><div class="spinner"></div></div>
         <div class="chart-empty" id="monthlyChartEmpty"><i class="fas fa-chart-column"></i><span>ยังไม่มีข้อมูล</span></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-head">
+        <span><i class="fas fa-percent"></i> % สำเร็จ รายเดือน</span>
+        <div class="chart-legend" id="yieldLegend">
+          <span data-index="0"><i class="dot dot-yield"></i>% สำเร็จ</span>
+          <span data-index="1"><i class="dash"></i>ค่าเฉลี่ย</span>
+        </div>
+        <div class="chart-tools">
+          <button type="button" class="chart-export-btn" id="yieldExportBtn" title="ดาวน์โหลดรูปกราฟ"><i class="fas fa-download"></i></button>
+        </div>
+      </div>
+      <div class="chart-box" style="height:220px">
+        <canvas id="yieldChart"></canvas>
+        <div class="chart-loading" id="yieldChartLoading"><div class="spinner"></div></div>
+        <div class="chart-empty" id="yieldChartEmpty"><i class="fas fa-percent"></i><span>ยังไม่มีข้อมูล</span></div>
       </div>
     </div>
     <div class="chart-card">
@@ -906,6 +922,7 @@ async function loadMonthly(year) {
   renderSummaryCards(grandTotal, grandTarget);
   renderMonthlyChart(chartPlan, chartActual);
   renderProductChart(planProductSums, productSums);
+  renderYieldChart(chartPlan, chartActual);
 
   window.monthlyExportData = {
     year, rows: monthlyExportRows,
@@ -996,7 +1013,7 @@ function chartCommonOptions(loadingEl, type, highlightIndex, showYieldAxis) {
   return {
     responsive: true,
     maintainAspectRatio: false,
-    layout: { padding: { top: 75, bottom: type === 'line' ? 10 : 0 } },
+    layout: { padding: { top: 24, bottom: type === 'line' ? 10 : 0 } },
     animation: {
       onComplete: () => { if (loadingEl) loadingEl.classList.remove('show'); }
     },
@@ -1053,8 +1070,8 @@ function drawMonthlyChart() {
   const highlightIndex = (currentYear === now.getFullYear()) ? now.getMonth() : null;
   monthlyChartInstance = new Chart(ctx, {
     type: monthlyChartType,
-    data: { labels: MONTHS, datasets: buildChartDatasets(monthlyChartType, planData, actualData, { includeYield: true }) },
-    options: chartCommonOptions(loadingEl, monthlyChartType, highlightIndex, true)
+    data: { labels: MONTHS, datasets: buildChartDatasets(monthlyChartType, planData, actualData) },
+    options: chartCommonOptions(loadingEl, monthlyChartType, highlightIndex)
   });
 }
 
@@ -1082,6 +1099,74 @@ function drawProductChart() {
     type: productChartType,
     data: { labels: PRODUCTS, datasets: buildChartDatasets(productChartType, planArr, actualArr) },
     options: chartCommonOptions(loadingEl, productChartType)
+  });
+}
+
+let yieldChartInstance = null;
+let yieldChartData = { plan: [], actual: [] };
+
+function renderYieldChart(planData, actualData) {
+  yieldChartData = { plan: planData, actual: actualData };
+  drawYieldChart();
+}
+
+function drawYieldChart() {
+  const { plan: planData, actual: actualData } = yieldChartData;
+  const ctx = document.getElementById('yieldChart');
+  const emptyEl = document.getElementById('yieldChartEmpty');
+  const loadingEl = document.getElementById('yieldChartLoading');
+  const yieldData = planData.map((p, i) => p > 0 ? Math.round((actualData[i] || 0) / p * 1000) / 10 : null);
+  const hasData = yieldData.some(v => v != null);
+  if (emptyEl) emptyEl.classList.toggle('show', !hasData);
+  if (yieldChartInstance) yieldChartInstance.destroy();
+  if (loadingEl) loadingEl.classList.add('show');
+  const validVals = yieldData.filter(v => v != null);
+  const avg = validVals.length ? Math.round(average(validVals) * 10) / 10 : 0;
+  const now = new Date();
+  const highlightIndex = (currentYear === now.getFullYear()) ? now.getMonth() : null;
+  yieldChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: MONTHS,
+      datasets: [
+        {
+          label: '% สำเร็จ', data: yieldData, borderColor: '#6a4ab7', backgroundColor: 'rgba(106,74,183,.12)',
+          pointBackgroundColor: '#6a4ab7', pointRadius: 3, borderWidth: 2, tension: 0.3, fill: true
+        },
+        {
+          label: 'ค่าเฉลี่ย', data: yieldData.map(() => avg), borderColor: '#8a94a6', borderDash: [6, 4],
+          borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0, order: -1, datalabels: { display: false }
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 24 } },
+      animation: { onComplete: () => { if (loadingEl) loadingEl.classList.remove('show'); } },
+      plugins: {
+        legend: { display: false },
+        currentMonthHighlight: { index: highlightIndex },
+        tooltip: { callbacks: { label: (item) => item.dataset.label + ': ' + item.parsed.y + '%' } },
+        datalabels: {
+          anchor: 'end', align: 'top', color: '#4a2f8a',
+          font: { family: 'JetBrains Mono', size: 10, weight: '600' },
+          formatter: (v) => v != null ? v + '%' : ''
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          suggestedMax: 120,
+          grid: { color: 'rgba(14,107,87,.08)' },
+          ticks: { callback: v => v + '%', font: { family: 'JetBrains Mono' } }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { family: 'Sarabun' } }
+        }
+      }
+    }
   });
 }
 
@@ -1149,6 +1234,20 @@ setupChartControls(
 
 setupChartLegend('monthlyLegend', () => monthlyChartInstance);
 setupChartLegend('productLegend', () => productChartInstance);
+setupChartLegend('yieldLegend', () => yieldChartInstance);
+
+(function setupYieldExport() {
+  const exportBtn = document.getElementById('yieldExportBtn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      if (!yieldChartInstance) return;
+      const link = document.createElement('a');
+      link.download = 'กราฟเปอร์เซ็นต์สำเร็จ.png';
+      link.href = yieldChartInstance.toBase64Image();
+      link.click();
+    });
+  }
+})();
 
 function renderSummaryCards(grandTotal, grandTarget) {
   const wrap = document.getElementById('summaryCards');
