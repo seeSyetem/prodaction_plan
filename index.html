@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#eef3f1;
@@ -129,6 +130,11 @@
   }
   .btn-primary{background:var(--brand); color:#fff; box-shadow:0 3px 10px rgba(14,107,87,.3)}
   .btn-primary:hover{background:var(--brand-deep); transform:translateY(-1px)}
+  .btn-export{
+    background:var(--success); color:#fff; padding:9px 16px; font-size:13px;
+    box-shadow:0 3px 10px rgba(31,157,85,.3); margin-left:auto;
+  }
+  .btn-export:hover{background:#187d43; transform:translateY(-1px)}
 
   /* ===== ตารางหลัก (รายวัน/รายเดือน) ===== */
   .table-wrap{
@@ -270,6 +276,7 @@
     <div class="toolbar">
       <select id="dailyMonthSelect"></select>
       <span class="hint" style="margin:0">แสดงรายการที่บันทึกไว้ในเดือนนี้</span>
+      <button id="exportDailyBtn" type="button" class="btn btn-export"><i class="fas fa-file-excel"></i> Export Excel</button>
     </div>
     <div class="table-wrap">
       <table class="table-simple">
@@ -295,6 +302,7 @@
   <section class="panel active" id="panelMonthly">
     <div class="toolbar">
       <select id="yearSelect"></select>
+      <button id="exportMonthlyBtn" type="button" class="btn btn-export"><i class="fas fa-file-excel"></i> Export Excel</button>
     </div>
     <div class="cards" id="summaryCards"></div>
     <div class="chart-card">
@@ -410,7 +418,7 @@ function showSaveIndicator(state) {
 }
 
 /* ============ TABS ============ */
-const ADMIN_PASSWORD = "see1234";
+const ADMIN_PASSWORD = "ไทยครับ";
 document.getElementById('tabBtnDaily').addEventListener('click', () => switchTab('daily'));
 document.getElementById('tabBtnMonthly').addEventListener('click', () => switchTab('monthly'));
 function switchTab(name) {
@@ -748,15 +756,18 @@ async function loadMonthly(year) {
   const traySums = {}; PRODUCTS.forEach(p => traySums[p] = 0);
   let grandTotal = 0, grandTarget = 0;
   const chartPlan = [], chartActual = [];
+  const monthlyExportRows = [];
 
   for (let month = 1; month <= 12; month++) {
     let monthTotal = 0;
     let cells = '';
+    const actualByProduct = {}, planByProduct = {}, trayByProduct = {};
     PRODUCTS.forEach(p => {
       const v = monthProduct[month + '_' + p] || 0;
       monthTotal += v; productSums[p] += v;
       const tray = calcTray(v);
       traySums[p] += tray;
+      actualByProduct[p] = v; trayByProduct[p] = tray;
       cells += '<td class="col-actual">' + (v ? '<span class="liters-part">' + fmt(v) + '</span><span class="tray-part">/' + fmt(tray) + '</span>' : '-') + '</td>';
     });
 
@@ -765,12 +776,18 @@ async function loadMonthly(year) {
     PRODUCTS.forEach(p => {
       const v = monthPlanProduct[month + '_' + p] || 0;
       monthPlanTotal += v; planProductSums[p] += v;
+      planByProduct[p] = v;
       planCells += '<td class="col-plan">' + (v ? fmt(v) : '-') + '</td>';
     });
     const target = monthPlanTotal || (monthTarget[month] || 0);
     grandTotal += monthTotal; grandTarget += target;
     chartPlan.push(target);
     chartActual.push(monthTotal);
+    monthlyExportRows.push({
+      month, label: MONTHS[month-1], target, actual: monthTotal,
+      tray: calcTray(monthTotal), pct: target > 0 ? (monthTotal/target*100) : null,
+      bottles: monthTotal / BOTTLE_SIZE, planByProduct, actualByProduct, trayByProduct
+    });
 
     const tr = document.createElement('tr');
     tr.innerHTML = '<td>' + month + '</td><td>' + MONTHS[month-1] + '</td>' +
@@ -802,6 +819,11 @@ async function loadMonthly(year) {
   renderSummaryCards(grandTotal, grandTarget);
   renderMonthlyChart(chartPlan, chartActual);
   renderProductChart(planProductSums, productSums);
+
+  window.monthlyExportData = {
+    year, rows: monthlyExportRows,
+    totals: { target: grandTarget, actual: grandTotal, tray: calcTray(grandTotal), bottles: grandTotal / BOTTLE_SIZE, planProductSums, productSums, traySums }
+  };
 }
 
 if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
@@ -924,6 +946,73 @@ async function populateYearSelect() {
   currentYear = list[0];
 }
 document.getElementById('yearSelect').addEventListener('change', (e) => loadMonthly(parseInt(e.target.value,10)));
+
+/* ============ Export to Excel ============ */
+function exportMonthlyToExcel() {
+  const data = window.monthlyExportData;
+  if (!data || !window.XLSX) { alert('ยังไม่มีข้อมูลให้ export หรือโหลดไลบรารีไม่สำเร็จ'); return; }
+
+  const summarySheet = [
+    ['#', 'เดือน', 'ลิตรตามแผน', 'ลิตรที่ได้จริง', 'tray ที่ได้จริง', '% สำเร็จ', 'ขวด/เดือน']
+  ];
+  data.rows.forEach(r => {
+    summarySheet.push([r.month, r.label, r.target || 0, r.actual || 0, Math.round(r.tray), r.pct !== null ? Math.round(r.pct*10)/10 : '', Math.round(r.bottles)]);
+  });
+  summarySheet.push(['#', 'รวม', data.totals.target, data.totals.actual, Math.round(data.totals.tray), data.totals.target > 0 ? Math.round(data.totals.actual/data.totals.target*1000)/10 : '', Math.round(data.totals.bottles)]);
+
+  const planHeader = ['#', 'เดือน', ...PRODUCTS.map(p => 'แผน_' + p)];
+  const actualHeader = [...PRODUCTS.flatMap(p => ['จริง_' + p, 'tray_' + p])];
+  const productSheet = [ [...planHeader, ...actualHeader] ];
+  data.rows.forEach(r => {
+    const planVals = PRODUCTS.map(p => r.planByProduct[p] || 0);
+    const actualVals = PRODUCTS.flatMap(p => [r.actualByProduct[p] || 0, Math.round((r.trayByProduct[p] || 0)*10)/10]);
+    productSheet.push([r.month, r.label, ...planVals, ...actualVals]);
+  });
+  const totalPlanVals = PRODUCTS.map(p => data.totals.planProductSums[p] || 0);
+  const totalActualVals = PRODUCTS.flatMap(p => [data.totals.productSums[p] || 0, Math.round((data.totals.traySums[p] || 0)*10)/10]);
+  productSheet.push(['#', 'รวม', ...totalPlanVals, ...totalActualVals]);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summarySheet), 'สรุปรายเดือน');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(productSheet), 'แยกตามผลิตภัณฑ์');
+  XLSX.writeFile(wb, 'ยอดผลิต_รายเดือน_' + data.year + '.xlsx');
+}
+
+function exportDailyToExcel() {
+  if (!window.XLSX) { alert('โหลดไลบรารี Excel ไม่สำเร็จ'); return; }
+  if (!dailyRows.length) { alert('ยังไม่มีข้อมูลในเดือนนี้'); return; }
+
+  const summarySheet = [
+    ['#', 'วันที่', 'ลิตรตามแผน', 'ลิตรที่ได้จริง', 'tray ที่ได้จริง', '% สำเร็จ', 'ขวด/วัน']
+  ];
+  const planHeader = ['#', 'วันที่', ...PRODUCTS.map(p => 'แผน_' + p)];
+  const actualHeader = [...PRODUCTS.flatMap(p => ['จริง_' + p, 'tray_' + p])];
+  const productSheet = [ [...planHeader, ...actualHeader] ];
+
+  let grandTotal = 0, grandTarget = 0;
+  dailyRows.forEach((row, idx) => {
+    const dateLabel = row.date.split('-').reverse().join('/');
+    let rowTotal = 0, rowPlanTotal = 0;
+    PRODUCTS.forEach(p => { rowTotal += row.values[p] || 0; });
+    PRODUCTS.forEach(p => { rowPlanTotal += row.planValues[p] || 0; });
+    const target = rowPlanTotal || row.target;
+    grandTotal += rowTotal; grandTarget += target;
+    const tray = calcTray(rowTotal);
+    summarySheet.push([idx+1, dateLabel, target || 0, rowTotal || 0, Math.round(tray), target > 0 ? Math.round(rowTotal/target*1000)/10 : '', Math.round(rowTotal / BOTTLE_SIZE)]);
+
+    const planVals = PRODUCTS.map(p => row.planValues[p] || 0);
+    const actualVals = PRODUCTS.flatMap(p => [row.values[p] || 0, Math.round(calcTray(row.values[p] || 0)*10)/10]);
+    productSheet.push([idx+1, dateLabel, ...planVals, ...actualVals]);
+  });
+  summarySheet.push(['#', 'รวม', grandTarget, grandTotal, Math.round(calcTray(grandTotal)), grandTarget > 0 ? Math.round(grandTotal/grandTarget*1000)/10 : '', Math.round(grandTotal / BOTTLE_SIZE)]);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summarySheet), 'รายวัน');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(productSheet), 'แยกตามผลิตภัณฑ์');
+  XLSX.writeFile(wb, 'ยอดผลิต_รายวัน_' + currentYM + '.xlsx');
+}
+document.getElementById('exportMonthlyBtn').addEventListener('click', exportMonthlyToExcel);
+document.getElementById('exportDailyBtn').addEventListener('click', exportDailyToExcel);
 
 /* ============ เริ่มทำงาน ============ */
 (async function init() {
