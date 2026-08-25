@@ -288,6 +288,58 @@
     .table.text-center input, table.table input{width:100%; min-width:60px}
     .save-indicator{right:12px; bottom:12px; left:12px; text-align:center; justify-content:center}
   }
+
+  /* ===== Custom modal (แทน prompt/alert/confirm ของเบราว์เซอร์) ===== */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(10,20,17,.55); backdrop-filter:blur(2px);
+    display:none; align-items:center; justify-content:center; z-index:100; padding:20px;
+    opacity:0; transition:opacity .18s ease;
+  }
+  .modal-overlay.show{display:flex}
+  .modal-overlay.visible{opacity:1}
+  .modal-box{
+    background:var(--surface); border-radius:16px; width:100%; max-width:360px; padding:26px 26px 22px;
+    box-shadow:0 20px 50px rgba(0,0,0,.35); border-top:4px solid var(--amber);
+    text-align:center; transform:translateY(14px) scale(.97); transition:transform .2s ease;
+  }
+  .modal-overlay.visible .modal-box{transform:translateY(0) scale(1)}
+  .modal-box.shake{animation:modalShake .38s ease}
+  @keyframes modalShake{
+    10%,90%{transform:translateX(-1px)}
+    20%,80%{transform:translateX(3px)}
+    30%,50%,70%{transform:translateX(-6px)}
+    40%,60%{transform:translateX(6px)}
+  }
+  .modal-icon{
+    width:52px; height:52px; border-radius:50%; margin:0 auto 14px; background:var(--brand-pale); color:var(--brand-deep);
+    display:flex; align-items:center; justify-content:center; font-size:20px; border:2px solid var(--amber);
+  }
+  .modal-box h3{
+    font-family:var(--display); font-size:16px; font-weight:600; color:var(--brand-deep); margin:0 0 6px;
+  }
+  .modal-box p{font-size:13px; color:var(--ink-soft); margin:0 0 16px; line-height:1.5}
+  .modal-input-wrap{position:relative; margin-bottom:6px}
+  .modal-input-wrap i{
+    position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--ink-soft); font-size:13px;
+  }
+  .modal-box input[type=password], .modal-box input[type=text]{
+    width:100%; font-family:var(--mono); font-size:14px; padding:11px 12px 11px 36px; border-radius:9px;
+    border:1.5px solid var(--line); background:#fbfdfc; color:var(--ink); text-align:left;
+  }
+  .modal-box input[type=password]:focus, .modal-box input[type=text]:focus{
+    outline:none; border-color:var(--brand); box-shadow:0 0 0 3px var(--brand-pale);
+  }
+  .modal-error{
+    font-size:12px; color:var(--danger); font-weight:600; text-align:left; margin:6px 2px 2px; min-height:16px;
+    display:flex; align-items:center; gap:5px; opacity:0; transition:opacity .15s;
+  }
+  .modal-error.show{opacity:1}
+  .modal-actions{display:flex; gap:10px; margin-top:16px}
+  .modal-actions .btn{flex:1; justify-content:center; padding:10px 14px; font-size:13.5px}
+  .btn-ghost{background:var(--brand-pale); color:var(--brand-deep)}
+  .btn-ghost:hover{background:#d7ece3}
+  .btn-danger{background:var(--danger); color:#fff; box-shadow:0 3px 10px rgba(209,72,63,.3)}
+  .btn-danger:hover{background:#b83a32}
 </style>
 </head>
 <body>
@@ -467,6 +519,37 @@
 
 <div class="save-indicator" id="saveIndicator"><i class="fas fa-circle-notch fa-spin"></i> <span>กำลังบันทึก...</span></div>
 
+<!-- ===== Custom modal: ใส่รหัสผ่าน admin ===== -->
+<div class="modal-overlay" id="pwModalOverlay">
+  <div class="modal-box" id="pwModalBox">
+    <div class="modal-icon"><i class="fas fa-lock"></i></div>
+    <h3>เข้าถึงหน้ารายวัน</h3>
+    <p>หน้านี้สำหรับ admin เท่านั้น<br>กรุณาใส่รหัสผ่านเพื่อดำเนินการต่อ</p>
+    <div class="modal-input-wrap">
+      <i class="fas fa-key"></i>
+      <input type="password" id="pwModalInput" placeholder="รหัสผ่าน" autocomplete="off">
+    </div>
+    <div class="modal-error" id="pwModalError"><i class="fas fa-triangle-exclamation"></i> รหัสผ่านไม่ถูกต้อง</div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="pwModalCancel">ยกเลิก</button>
+      <button type="button" class="btn btn-primary" id="pwModalConfirm"><i class="fas fa-unlock"></i> ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Custom modal: ยืนยันการลบ ===== -->
+<div class="modal-overlay" id="confirmModalOverlay">
+  <div class="modal-box" id="confirmModalBox">
+    <div class="modal-icon" style="background:var(--amber-pale); border-color:var(--danger); color:var(--danger)"><i class="fas fa-trash"></i></div>
+    <h3 id="confirmModalTitle">ยืนยันการลบ</h3>
+    <p id="confirmModalText">คุณต้องการลบข้อมูลนี้ใช่หรือไม่?</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="confirmModalCancel">ยกเลิก</button>
+      <button type="button" class="btn btn-danger" id="confirmModalOk"><i class="fas fa-trash"></i> ลบข้อมูล</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = "https://avwifsxjhomnufwbwjop.supabase.co";
 const SUPABASE_KEY = "sb_publishable_ef0aI4K8lJxRPt3A71DOFA_xYGP7_bx";
@@ -520,15 +603,90 @@ function showSaveIndicator(state) {
   }
 }
 
+/* ============ Custom Modal: ใส่รหัสผ่าน ============ */
+function askAdminPassword() {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('pwModalOverlay');
+    const box = document.getElementById('pwModalBox');
+    const input = document.getElementById('pwModalInput');
+    const errorEl = document.getElementById('pwModalError');
+    const confirmBtn = document.getElementById('pwModalConfirm');
+    const cancelBtn = document.getElementById('pwModalCancel');
+
+    input.value = '';
+    errorEl.classList.remove('show');
+    overlay.classList.add('show');
+    requestAnimationFrame(() => overlay.classList.add('visible'));
+    setTimeout(() => input.focus(), 150);
+
+    function close(result) {
+      overlay.classList.remove('visible');
+      setTimeout(() => overlay.classList.remove('show'), 180);
+      confirmBtn.removeEventListener('click', onConfirm);
+      cancelBtn.removeEventListener('click', onCancel);
+      input.removeEventListener('keydown', onKeydown);
+      resolve(result);
+    }
+    function onConfirm() {
+      if (input.value === ADMIN_PASSWORD) {
+        close(true);
+      } else {
+        errorEl.classList.add('show');
+        box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+        input.value = ''; input.focus();
+      }
+    }
+    function onCancel() { close(false); }
+    function onKeydown(e) {
+      if (e.key === 'Enter') onConfirm();
+      if (e.key === 'Escape') onCancel();
+    }
+    confirmBtn.addEventListener('click', onConfirm);
+    cancelBtn.addEventListener('click', onCancel);
+    input.addEventListener('keydown', onKeydown);
+  });
+}
+
+/* ============ Custom Modal: ยืนยันการลบ (แทน confirm()) ============ */
+function askConfirm(text, title) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('confirmModalOverlay');
+    const okBtn = document.getElementById('confirmModalOk');
+    const cancelBtn = document.getElementById('confirmModalCancel');
+    document.getElementById('confirmModalText').textContent = text || 'คุณต้องการลบข้อมูลนี้ใช่หรือไม่?';
+    document.getElementById('confirmModalTitle').textContent = title || 'ยืนยันการลบ';
+
+    overlay.classList.add('show');
+    requestAnimationFrame(() => overlay.classList.add('visible'));
+
+    function close(result) {
+      overlay.classList.remove('visible');
+      setTimeout(() => overlay.classList.remove('show'), 180);
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      document.removeEventListener('keydown', onKeydown);
+      resolve(result);
+    }
+    function onOk() { close(true); }
+    function onCancel() { close(false); }
+    function onKeydown(e) {
+      if (e.key === 'Enter') onOk();
+      if (e.key === 'Escape') onCancel();
+    }
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    document.addEventListener('keydown', onKeydown);
+  });
+}
+
 /* ============ TABS ============ */
 const ADMIN_PASSWORD = "see1234";
 document.getElementById('tabBtnDaily').addEventListener('click', () => switchTab('daily'));
 document.getElementById('tabBtnMonthly').addEventListener('click', () => switchTab('monthly'));
-function switchTab(name) {
+async function switchTab(name) {
   if (name === 'daily' && sessionStorage.getItem('isAdmin') !== 'true') {
-    const input = prompt('หน้ารายวันสำหรับ admin เท่านั้น กรุณาใส่รหัสผ่าน:');
-    if (input === null) return; // ยกเลิก
-    if (input !== ADMIN_PASSWORD) { alert('รหัสผ่านไม่ถูกต้อง'); return; }
+    const ok = await askAdminPassword();
+    if (!ok) return;
     sessionStorage.setItem('isAdmin', 'true');
   }
   document.getElementById('panelDaily').classList.toggle('active', name === 'daily');
@@ -727,7 +885,8 @@ async function onPlanProductChange(e) {
 async function onDeleteDay(e) {
   const btn = e.target.closest('button');
   const date = btn.dataset.date;
-  if (!confirm('ลบข้อมูลวันที่ ' + date.split('-').reverse().join('/') + ' ทั้งหมดใช่ไหม?')) return;
+  const ok = await askConfirm('ลบข้อมูลวันที่ ' + date.split('-').reverse().join('/') + ' ทั้งหมดใช่ไหม?', 'ยืนยันการลบข้อมูลวัน');
+  if (!ok) return;
   showSaveIndicator('saving');
   try {
     await supaFetch(TABLE + '?prod_date=eq.' + date, { method: 'DELETE' });
