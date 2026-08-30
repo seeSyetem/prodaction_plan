@@ -184,6 +184,9 @@
   tfoot td:not(:first-child):not(:nth-child(2)){text-align:right}
   .del-btn{background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px; padding:4px 8px; border-radius:6px; transition:.15s}
   .del-btn:hover{background:rgba(209,72,63,.1)}
+  .edit-btn{background:none; border:none; color:var(--brand); cursor:pointer; font-size:14px; padding:4px 8px; border-radius:6px; transition:.15s}
+  .edit-btn:hover{background:var(--brand-pale)}
+  .row-actions{display:flex; gap:2px; justify-content:center}
 
   .save-indicator{
     position:fixed; bottom:20px; right:20px; background:var(--brand-deep); color:#fff; padding:11px 20px; border-radius:30px;
@@ -409,7 +412,7 @@
         <tfoot><tr id="dailyFooterRow"></tr></tfoot>
       </table>
     </div>
-    <p class="hint"><i class="fas fa-circle-info"></i> แก้ไขจำนวนตามผลิตภัณฑ์ได้ที่ฟอร์มด้านบน &nbsp;|&nbsp; กด 🗑 เพื่อลบข้อมูลวันนั้นทั้งแถว &nbsp;|&nbsp; สูตร: tray ที่ได้จริง = ลิตรที่ได้จริง ÷ 0.315 ÷ 24</p>
+    <p class="hint"><i class="fas fa-circle-info"></i> กด ✏️ เพื่อดึงข้อมูลวันนั้นขึ้นมาแก้ไขในฟอร์มด้านบน &nbsp;|&nbsp; กด 🗑 เพื่อลบข้อมูลวันนั้นทั้งแถว &nbsp;|&nbsp; สูตร: tray ที่ได้จริง = ลิตรที่ได้จริง ÷ 0.315 ÷ 24</p>
   </section>
 
   <!-- ===== แท็บรายเดือน ===== -->
@@ -829,11 +832,15 @@ function renderDailyTable() {
       '<td class="bottle-cell">' + (rowTotal ? fmt(calcTray(rowTotal)) : '-') + '</td>' +
       '<td class="pct-cell">' + fmtPct(rowTotal, displayTarget) + '</td>' +
       '<td class="bottle-cell">' + (rowTotal ? fmt(rowTotal / BOTTLE_SIZE) : '-') + '</td>' +
-      '<td><button class="del-btn" data-date="' + row.date + '"><i class="fas fa-trash"></i></button></td>';
+      '<td><div class="row-actions">' +
+        '<button class="edit-btn" data-date="' + row.date + '" title="แก้ไข"><i class="fas fa-pen"></i></button>' +
+        '<button class="del-btn" data-date="' + row.date + '" title="ลบ"><i class="fas fa-trash"></i></button>' +
+      '</div></td>';
     tbody.appendChild(tr);
   });
 
   tbody.querySelectorAll('.del-btn').forEach(btn => btn.addEventListener('click', onDeleteDay));
+  tbody.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', onEditDay));
 
   const footer = document.getElementById('dailyFooterRow');
   footer.innerHTML = '<td>#</td><td>รวม</td>' +
@@ -895,6 +902,23 @@ async function onDeleteDay(e) {
     showSaveIndicator('saved');
     await loadDaily(currentYM);
   } catch (err) { console.error(err); showSaveIndicator('error'); }
+}
+
+function onEditDay(e) {
+  const btn = e.target.closest('button');
+  const date = btn.dataset.date;
+  const row = dailyRows.find(r => r.date === date);
+  if (!row) return;
+
+  document.getElementById('entryDate').value = date;
+  PRODUCTS.forEach(p => {
+    const planInput = document.getElementById(`plan_${p}`);
+    const actualInput = document.getElementById(`actual_${p}`);
+    if (planInput) planInput.value = row.planValues[p] || '';
+    if (actualInput) actualInput.value = row.values[p] || '';
+  });
+
+  document.querySelector('.daily-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function saveTodayEntry() {
