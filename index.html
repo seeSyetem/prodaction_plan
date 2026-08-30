@@ -455,6 +455,7 @@
     <div class="toolbar">
       <select id="yearSelect"></select>
       <button id="compareMonthlyBtn" type="button" class="btn btn-compare"><i class="fas fa-code-compare"></i> เปรียบเทียบรายเดือน</button>
+      <button id="import2025Btn" type="button" class="btn btn-ghost"><i class="fas fa-file-import"></i> นำเข้าข้อมูลปี 2025</button>
       <button id="exportMonthlyBtn" type="button" class="btn btn-export"><i class="fas fa-file-excel"></i> Export Excel</button>
     </div>
     <div class="cards" id="summaryCards"></div>
@@ -1536,6 +1537,85 @@ document.getElementById('yearSelect').addEventListener('change', async (e) => {
     renderCompareTable();
   }
 });
+
+/* ============ นำเข้าข้อมูลปี 2025 (จากตารางที่มีอยู่เดิม) ============ */
+const YEAR2025_PLAN = {
+  1: {}, 2: {},
+  3: { OR:23000, BN:11290, CN:7150, MG:6650, CM:19450, BK:2550 },
+  4: { OR:18800, BN:12300, MG:3900, CM:17200, BK:6650 },
+  5: { OR:10300, BN:8650, CM:6550, BK:6150 },
+  6: { OR:7250, BN:4500, CN:2250, MG:2400, CM:6150 },
+  7: { OR:5400, BN:6900, MG:750, CM:3750, BK:400 },
+  8: { OR:14900, BN:5300, CN:3150, MG:4850, CM:9900 },
+  9: { OR:19150, BN:3150, CN:1450, MG:5725, CM:8050, BK:5400, GT:5650 },
+  10: { OR:5950, BN:9750, CM:2750 },
+  11: { OR:8150, MG:2500, CM:850 },
+  12: { OR:16800, BN:3750, CN:2150, MG:2150, CM:13750 }
+};
+const YEAR2025_ACTUAL = {
+  1: {}, 2: {},
+  3: { OR:22942, BN:10757, CN:7149, MG:7263, CM:16871, BK:2509 },
+  4: { OR:18467, BN:12011, MG:3922, CM:16572, BK:6595 },
+  5: { OR:9782, BN:8411, CM:6675, BK:5984 },
+  6: { OR:7051, BN:4646, CN:2367, MG:2448, CM:5461 },
+  7: { OR:5332, BN:6859, MG:710, CM:3857, BK:423 },
+  8: { OR:15013, BN:5292, CN:3287, MG:4927, CM:10042 },
+  9: { OR:19093, BN:3167, CN:1560, MG:5786, CM:8153, BK:5374, GT:5684 },
+  10: { OR:5920, BN:9688, CM:2753 },
+  11: { OR:8024, MG:3014, CM:872 },
+  12: { OR:16917, BN:3831, CN:2221, MG:2320, CM:12406 }
+};
+
+async function importYear2025Data() {
+  const ok = await askConfirm(
+    'จะนำเข้าข้อมูลแผนและยอดจริงรายเดือนของปี 2025 (จากตารางที่ให้มา) เข้าระบบ โดยบันทึกเป็นยอดรวมของแต่ละเดือน (วันที่ 1 ของเดือน) ต้องการดำเนินการต่อหรือไม่?',
+    'ยืนยันการนำเข้าข้อมูลปี 2025'
+  );
+  if (!ok) return;
+  const pwOk = await askAdminPassword();
+  if (!pwOk) return;
+
+  showSaveIndicator('saving');
+  try {
+    for (let month = 1; month <= 12; month++) {
+      const date = '2025-' + pad2(month) + '-01';
+      const planByProduct = YEAR2025_PLAN[month] || {};
+      const actualByProduct = YEAR2025_ACTUAL[month] || {};
+      let planSum = 0;
+      for (const p of PRODUCTS) {
+        const planQty = planByProduct[p] || 0;
+        const actualQty = actualByProduct[p] || 0;
+        planSum += planQty;
+        if (planQty === 0 && actualQty === 0) continue;
+        await supaFetch(TABLE + '?on_conflict=prod_date,product', {
+          method: 'POST', prefer: 'resolution=merge-duplicates',
+          body: JSON.stringify({ prod_date: date, product: p, qty: actualQty })
+        });
+        await supaFetch(PLAN_PRODUCT_TABLE + '?on_conflict=prod_date,product', {
+          method: 'POST', prefer: 'resolution=merge-duplicates',
+          body: JSON.stringify({ prod_date: date, product: p, qty: planQty })
+        });
+      }
+      if (planSum > 0) {
+        await supaFetch(PLAN_TABLE + '?on_conflict=prod_date', {
+          method: 'POST', prefer: 'resolution=merge-duplicates',
+          body: JSON.stringify({ prod_date: date, target_liters: planSum })
+        });
+      }
+    }
+    delete window.compareYearCache[2025];
+    showSaveIndicator('saved');
+    await populateYearSelect();
+    document.getElementById('yearSelect').value = currentYear;
+    await loadMonthly(currentYear);
+    alert('นำเข้าข้อมูลปี 2025 เรียบร้อยแล้ว เลือกปี 2025 ที่ dropdown ปี หรือใช้ปุ่ม "เปรียบเทียบรายเดือน" เพื่อเทียบกับปี 2026 ได้เลย');
+  } catch (err) {
+    console.error(err);
+    showSaveIndicator('error');
+    alert('นำเข้าข้อมูลไม่สำเร็จ: ' + err.message);
+  }
+}
+document.getElementById('import2025Btn').addEventListener('click', importYear2025Data);
 
 /* ============ Export to Excel ============ */
 function exportMonthlyToExcel() {
