@@ -1353,6 +1353,7 @@ function drawMonthlyChart() {
 
 let productChartInstance = null;
 let productChartType = localStorage.getItem('chartType_product') || 'bar';
+let compareChartType = localStorage.getItem('chartType_compare') || 'bar';
 let productChartData = { plan: [], actual: [] };
 
 function renderProductChart(planSums, actualSums) {
@@ -1725,7 +1726,6 @@ function populateCompareYearSelect() {
 }
 
 let compareChartInstance = null;
-let compareChartType = localStorage.getItem('chartType_compare') || 'bar';
 let compareChartData = { labels: [], dataA: [], dataB: [], labelA: '', labelB: '' };
 
 function buildCompareDatasets(type, dataA, dataB, labelA, labelB) {
