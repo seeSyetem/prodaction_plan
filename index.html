@@ -343,6 +343,41 @@
   .btn-ghost:hover{background:#d7ece3}
   .btn-danger{background:var(--danger); color:#fff; box-shadow:0 3px 10px rgba(209,72,63,.3)}
   .btn-danger:hover{background:#b83a32}
+
+  /* ===== Modal เปรียบเทียบรายเดือน ===== */
+  .btn-compare{
+    background:var(--brand-deep); color:#fff; padding:9px 16px; font-size:13px;
+    box-shadow:0 3px 10px rgba(10,61,51,.3);
+  }
+  .btn-compare:hover{background:#082c25; transform:translateY(-1px)}
+  .modal-box-lg{
+    max-width:1100px; width:100%; text-align:left; padding:22px 24px 24px; max-height:88vh;
+    display:flex; flex-direction:column;
+  }
+  .modal-box-lg h3{text-align:left; display:flex; align-items:center; gap:10px}
+  .compare-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:14px}
+  .compare-head .field-inline{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .compare-head select{
+    font-family:var(--body); font-size:13.5px; font-weight:600; padding:8px 12px; border-radius:8px;
+    border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer;
+  }
+  .compare-close{background:none; border:none; color:var(--ink-soft); font-size:18px; cursor:pointer; padding:4px 8px; border-radius:6px}
+  .compare-close:hover{background:var(--brand-pale); color:var(--brand-deep)}
+  .compare-scroll{overflow:auto; border:1px solid var(--line); border-radius:10px}
+  table.compare-table{border-collapse:collapse; width:100%; min-width:560px}
+  table.compare-table th, table.compare-table td{padding:9px 10px; border:1px solid var(--line); font-size:13px; text-align:right}
+  table.compare-table thead th{
+    background:var(--brand-deep); color:#fff; font-family:var(--display); font-weight:600; font-size:12px;
+    position:sticky; top:0; z-index:2;
+  }
+  table.compare-table thead th:first-child{text-align:left}
+  table.compare-table tbody td:first-child{text-align:left; font-weight:600; font-family:var(--body); color:var(--brand-deep)}
+  table.compare-table tbody tr:nth-child(even){background:#f6faf8}
+  table.compare-table tfoot td{background:var(--amber-pale); font-weight:700; color:var(--amber-deep); border-top:2px solid var(--amber)}
+  table.compare-table td.diff-pos{color:var(--success); font-weight:700}
+  table.compare-table td.diff-neg{color:var(--danger); font-weight:700}
+  table.compare-table td.diff-zero{color:var(--ink-soft)}
+  .compare-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:14px}
 </style>
 </head>
 <body>
@@ -419,6 +454,7 @@
   <section class="panel active" id="panelMonthly">
     <div class="toolbar">
       <select id="yearSelect"></select>
+      <button id="compareMonthlyBtn" type="button" class="btn btn-compare"><i class="fas fa-code-compare"></i> เปรียบเทียบรายเดือน</button>
       <button id="exportMonthlyBtn" type="button" class="btn btn-export"><i class="fas fa-file-excel"></i> Export Excel</button>
     </div>
     <div class="cards" id="summaryCards"></div>
@@ -549,6 +585,41 @@
     <div class="modal-actions">
       <button type="button" class="btn btn-ghost" id="confirmModalCancel">ยกเลิก</button>
       <button type="button" class="btn btn-danger" id="confirmModalOk"><i class="fas fa-trash"></i> ลบข้อมูล</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Custom modal: เปรียบเทียบรายเดือน ===== -->
+<div class="modal-overlay" id="compareModalOverlay">
+  <div class="modal-box modal-box-lg" id="compareModalBox">
+    <h3><i class="fas fa-code-compare"></i> เปรียบเทียบแผนกับยอดจริงรายเดือน</h3>
+    <div class="compare-head">
+      <div class="field-inline">
+        <label style="font-size:12.5px; font-weight:600; color:var(--ink-soft)">เลือกสินค้า:</label>
+        <select id="compareProductSelect">
+          <option value="__all__">รวมทุกผลิตภัณฑ์</option>
+        </select>
+        <label style="font-size:12.5px; font-weight:600; color:var(--ink-soft)">เทียบกับปี:</label>
+        <select id="compareYearSelect">
+          <option value="__plan__">แผน (ปีเดียวกัน)</option>
+        </select>
+      </div>
+      <button type="button" class="compare-close" id="compareModalCloseX" title="ปิด"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="compare-scroll">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>เดือน</th><th id="compareColHead1">ลิตรตามแผน</th><th id="compareColHead2">ลิตรที่ได้จริง</th><th>ผลต่าง</th><th id="compareColHead3">% Yield</th>
+          </tr>
+        </thead>
+        <tbody id="compareBody"></tbody>
+        <tfoot><tr id="compareFooterRow"></tr></tfoot>
+      </table>
+    </div>
+    <div class="compare-actions">
+      <button type="button" class="btn btn-export" id="compareExportBtn"><i class="fas fa-file-excel"></i> Export Excel</button>
+      <button type="button" class="btn btn-ghost" id="compareModalClose">ปิดหน้าต่าง</button>
     </div>
   </div>
 </div>
@@ -1457,7 +1528,14 @@ async function populateYearSelect() {
   sel.value = list[0];
   currentYear = list[0];
 }
-document.getElementById('yearSelect').addEventListener('change', (e) => loadMonthly(parseInt(e.target.value,10)));
+document.getElementById('yearSelect').addEventListener('change', async (e) => {
+  await loadMonthly(parseInt(e.target.value,10));
+  const overlay = document.getElementById('compareModalOverlay');
+  if (overlay.classList.contains('show')) {
+    populateCompareYearSelect();
+    renderCompareTable();
+  }
+});
 
 /* ============ Export to Excel ============ */
 function exportMonthlyToExcel() {
@@ -1489,6 +1567,172 @@ function exportMonthlyToExcel() {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(productSheet), 'แยกตามผลิตภัณฑ์');
   XLSX.writeFile(wb, 'ยอดผลิต_รายเดือน_' + data.year + '.xlsx');
 }
+
+/* ============ เปรียบเทียบรายเดือน (Modal) ============ */
+window.compareYearCache = {}; // { [year]: { monthTotal:{1..12}, monthProduct:{ "1_OR":val } } }
+
+async function fetchYearActualData(year) {
+  if (window.compareYearCache[year]) return window.compareYearCache[year];
+  const first = year + '-01-01';
+  const last = year + '-12-31';
+  let prodRows = [];
+  try {
+    prodRows = await supaFetch(TABLE + '?prod_date=gte.' + first + '&prod_date=lte.' + last + '&select=prod_date,product,qty');
+  } catch (e) { console.error(e); }
+  const monthTotal = {}, monthProduct = {};
+  (prodRows || []).forEach(r => {
+    const month = parseInt(r.prod_date.slice(5,7), 10);
+    const qty = parseFloat(r.qty) || 0;
+    monthTotal[month] = (monthTotal[month] || 0) + qty;
+    const key = month + '_' + r.product;
+    monthProduct[key] = (monthProduct[key] || 0) + qty;
+  });
+  const result = { monthTotal, monthProduct };
+  window.compareYearCache[year] = result;
+  return result;
+}
+
+function populateCompareProductSelect() {
+  const sel = document.getElementById('compareProductSelect');
+  const current = sel.value;
+  sel.innerHTML = '<option value="__all__">รวมทุกผลิตภัณฑ์</option>' +
+    PRODUCTS.map(p => '<option value="' + p + '">' + p + '</option>').join('');
+  sel.value = current && [...sel.options].some(o => o.value === current) ? current : '__all__';
+}
+
+function populateCompareYearSelect() {
+  const yearSel = document.getElementById('yearSelect');
+  const years = [...yearSel.options].map(o => parseInt(o.value, 10)).filter(y => y !== currentYear);
+  const sel = document.getElementById('compareYearSelect');
+  const prevSelected = sel.value;
+  sel.innerHTML = '<option value="__plan__">แผน (ปีเดียวกัน)</option>' +
+    years.map(y => '<option value="' + y + '">ปี ' + y + '</option>').join('');
+  if (prevSelected && [...sel.options].some(o => o.value === prevSelected)) {
+    sel.value = prevSelected;
+  } else if (years.includes(currentYear - 1)) {
+    sel.value = String(currentYear - 1);
+  } else {
+    sel.value = '__plan__';
+  }
+}
+
+async function renderCompareTable() {
+  const data = window.monthlyExportData;
+  const tbody = document.getElementById('compareBody');
+  const footer = document.getElementById('compareFooterRow');
+  tbody.innerHTML = ''; footer.innerHTML = '';
+  if (!data) return;
+
+  const product = document.getElementById('compareProductSelect').value;
+  const compareYearVal = document.getElementById('compareYearSelect').value;
+  const isYearCompare = compareYearVal !== '__plan__';
+
+  document.getElementById('compareColHead1').textContent = isYearCompare ? ('ปี ' + currentYear) : 'ลิตรตามแผน';
+  document.getElementById('compareColHead2').textContent = isYearCompare ? ('ปี ' + compareYearVal) : 'ลิตรที่ได้จริง';
+  document.getElementById('compareColHead3').textContent = isYearCompare ? '% เปลี่ยนแปลง' : '% Yield';
+
+  let compareYearData = null;
+  if (isYearCompare) {
+    const compareYear = parseInt(compareYearVal, 10);
+    try {
+      compareYearData = await fetchYearActualData(compareYear);
+    } catch (e) { console.error(e); }
+  }
+
+  let totalA = 0, totalB = 0;
+
+  data.rows.forEach(r => {
+    let valA, valB;
+    if (isYearCompare) {
+      valA = product === '__all__' ? (r.actual || 0) : (r.actualByProduct[product] || 0);
+      valB = product === '__all__'
+        ? ((compareYearData && compareYearData.monthTotal[r.month]) || 0)
+        : ((compareYearData && compareYearData.monthProduct[r.month + '_' + product]) || 0);
+    } else {
+      valA = product === '__all__' ? (r.target || 0) : (r.planByProduct[product] || 0);
+      valB = product === '__all__' ? (r.actual || 0) : (r.actualByProduct[product] || 0);
+    }
+    const diff = valB - valA;
+    totalA += valA; totalB += valB;
+    const diffClass = diff > 0 ? 'diff-pos' : (diff < 0 ? 'diff-neg' : 'diff-zero');
+    const diffText = (diff > 0 ? '+' : '') + (valA || valB ? fmt(diff) : '-');
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + r.label + '</td>' +
+      '<td>' + (valA ? fmt(valA) : '-') + '</td>' +
+      '<td>' + (valB ? fmt(valB) : '-') + '</td>' +
+      '<td class="' + diffClass + '">' + diffText + '</td>' +
+      '<td>' + fmtPct(valB, valA) + '</td>';
+    tbody.appendChild(tr);
+  });
+
+  const totalDiff = totalB - totalA;
+  const totalDiffClass = totalDiff > 0 ? 'diff-pos' : (totalDiff < 0 ? 'diff-neg' : 'diff-zero');
+  footer.innerHTML = '<td>รวม</td>' +
+    '<td>' + fmt(totalA) + '</td>' +
+    '<td>' + fmt(totalB) + '</td>' +
+    '<td class="' + totalDiffClass + '">' + (totalDiff > 0 ? '+' : '') + fmt(totalDiff) + '</td>' +
+    '<td>' + fmtPct(totalB, totalA) + '</td>';
+}
+
+function openCompareModal() {
+  if (!window.monthlyExportData) { alert('ยังไม่มีข้อมูลให้เปรียบเทียบ'); return; }
+  populateCompareProductSelect();
+  populateCompareYearSelect();
+  renderCompareTable();
+  const overlay = document.getElementById('compareModalOverlay');
+  overlay.classList.add('show');
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+}
+function closeCompareModal() {
+  const overlay = document.getElementById('compareModalOverlay');
+  overlay.classList.remove('visible');
+  setTimeout(() => overlay.classList.remove('show'), 180);
+}
+
+document.getElementById('compareMonthlyBtn').addEventListener('click', openCompareModal);
+document.getElementById('compareModalClose').addEventListener('click', closeCompareModal);
+document.getElementById('compareModalCloseX').addEventListener('click', closeCompareModal);
+document.getElementById('compareModalOverlay').addEventListener('click', (e) => { if (e.target.id === 'compareModalOverlay') closeCompareModal(); });
+document.getElementById('compareProductSelect').addEventListener('change', renderCompareTable);
+document.getElementById('compareYearSelect').addEventListener('change', renderCompareTable);
+document.getElementById('compareExportBtn').addEventListener('click', async () => {
+  if (!window.XLSX || !window.monthlyExportData) { alert('ยังไม่มีข้อมูลให้ export'); return; }
+  const data = window.monthlyExportData;
+  const product = document.getElementById('compareProductSelect').value;
+  const compareYearVal = document.getElementById('compareYearSelect').value;
+  const isYearCompare = compareYearVal !== '__plan__';
+  const label = product === '__all__' ? 'รวมทุกผลิตภัณฑ์' : product;
+  const colA = isYearCompare ? ('ปี ' + currentYear) : 'ลิตรตามแผน';
+  const colB = isYearCompare ? ('ปี ' + compareYearVal) : 'ลิตรที่ได้จริง';
+  const colPct = isYearCompare ? '% เปลี่ยนแปลง' : '% Yield';
+
+  let compareYearData = null;
+  if (isYearCompare) {
+    try { compareYearData = await fetchYearActualData(parseInt(compareYearVal, 10)); } catch (e) { console.error(e); }
+  }
+
+  const sheet = [['เดือน', colA, colB, 'ผลต่าง', colPct]];
+  let totalA = 0, totalB = 0;
+  data.rows.forEach(r => {
+    let valA, valB;
+    if (isYearCompare) {
+      valA = product === '__all__' ? (r.actual || 0) : (r.actualByProduct[product] || 0);
+      valB = product === '__all__'
+        ? ((compareYearData && compareYearData.monthTotal[r.month]) || 0)
+        : ((compareYearData && compareYearData.monthProduct[r.month + '_' + product]) || 0);
+    } else {
+      valA = product === '__all__' ? (r.target || 0) : (r.planByProduct[product] || 0);
+      valB = product === '__all__' ? (r.actual || 0) : (r.actualByProduct[product] || 0);
+    }
+    totalA += valA; totalB += valB;
+    sheet.push([r.label, valA, valB, valB - valA, valA > 0 ? Math.round(valB/valA*1000)/10 : '']);
+  });
+  sheet.push(['รวม', totalA, totalB, totalB - totalA, totalA > 0 ? Math.round(totalB/totalA*1000)/10 : '']);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheet), 'เปรียบเทียบ');
+  const fileYearPart = isYearCompare ? (currentYear + '_vs_' + compareYearVal) : String(data.year);
+  XLSX.writeFile(wb, 'เปรียบเทียบรายเดือน_' + label + '_' + fileYearPart + '.xlsx');
+});
 
 function exportDailyToExcel() {
   if (!window.XLSX) { alert('โหลดไลบรารี Excel ไม่สำเร็จ'); return; }
