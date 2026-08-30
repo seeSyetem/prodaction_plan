@@ -1728,8 +1728,10 @@ function populateCompareYearSelect() {
 let compareChartInstance = null;
 let compareChartData = { labels: [], dataA: [], dataB: [], labelA: '', labelB: '' };
 
-function buildCompareDatasets(type, dataA, dataB, labelA, labelB) {
-  const pctData = dataA.map((v, i) => v > 0 ? Math.round((dataB[i] || 0) / v * 1000) / 10 : null);
+function buildCompareDatasets(type, dataA, dataB, labelA, labelB, pctCap) {
+  const rawPctData = dataA.map((v, i) => v > 0 ? Math.round((dataB[i] || 0) / v * 1000) / 10 : null);
+  const cap = pctCap || 120;
+  const pctData = rawPctData.map(v => v == null ? null : Math.min(v, cap));
   const mainDatasets = type === 'line' ? [
     { label: labelA, data: dataA, borderColor: '#0e6b57', backgroundColor: 'rgba(14,107,87,.12)', pointBackgroundColor: '#0e6b57', pointRadius: 3, borderWidth: 2, tension: 0.3, fill: true },
     { label: labelB, data: dataB, borderColor: '#f0a324', backgroundColor: 'rgba(240,163,36,.15)', pointBackgroundColor: '#f0a324', pointRadius: 3, borderWidth: 2, tension: 0.3, fill: true }
@@ -1741,10 +1743,14 @@ function buildCompareDatasets(type, dataA, dataB, labelA, labelB) {
     label: '% เปลี่ยนแปลง', data: pctData, type: 'line', yAxisID: 'y1',
     borderColor: '#6a4ab7', backgroundColor: '#6a4ab7', pointBackgroundColor: '#6a4ab7',
     borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false, order: -2,
+    _rawPct: rawPctData,
     datalabels: {
       color: '#4a2f8a', anchor: 'end', align: 'top', offset: type === 'line' ? 16 : 6, clamp: true,
       font: { family: 'JetBrains Mono', size: 9, weight: '600' },
-      formatter: (v) => v != null ? v + '%' : ''
+      formatter: (v, ctx) => {
+        const raw = ctx.dataset._rawPct ? ctx.dataset._rawPct[ctx.dataIndex] : v;
+        return raw != null ? raw + '%' : '';
+      }
     }
   };
   return [...mainDatasets, pctDataset];
@@ -1769,9 +1775,10 @@ function drawCompareChartInner() {
   // กันค่า % พุ่งสูงผิดปกติ (เช่น เดือนที่ค่าฐานน้อยมาก) ไม่ให้ดึงสเกลแกนขวาจนเส้นอื่นแบนราบ
   const pctValsForScale = pctValsRaw.filter(v => v <= 400);
   const maxPct = pctValsForScale.length ? Math.max(120, ...pctValsForScale) : (pctValsRaw.length ? Math.max(120, ...pctValsRaw) : 120);
+  const pctAxisCeiling = maxPct * 1.15;
   compareChartInstance = new Chart(ctx, {
     type: compareChartType,
-    data: { labels, datasets: buildCompareDatasets(compareChartType, dataA, dataB, labelA, labelB) },
+    data: { labels, datasets: buildCompareDatasets(compareChartType, dataA, dataB, labelA, labelB, pctAxisCeiling) },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -1780,9 +1787,13 @@ function drawCompareChartInner() {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: (item) => item.dataset.yAxisID === 'y1'
-              ? item.dataset.label + ': ' + item.parsed.y + '%'
-              : item.dataset.label + ': ' + fmt(item.parsed.y) + ' ลิตร'
+            label: (item) => {
+              if (item.dataset.yAxisID === 'y1') {
+                const raw = item.dataset._rawPct ? item.dataset._rawPct[item.dataIndex] : item.parsed.y;
+                return item.dataset.label + ': ' + (raw != null ? raw : item.parsed.y) + '%';
+              }
+              return item.dataset.label + ': ' + fmt(item.parsed.y) + ' ลิตร';
+            }
           }
         },
         datalabels: {
@@ -1798,7 +1809,7 @@ function drawCompareChartInner() {
       scales: {
         y: { beginAtZero: true, suggestedMax: maxVal * 1.18, grid: { color: 'rgba(14,107,87,.08)' }, ticks: { font: { family: 'JetBrains Mono' } } },
         y1: {
-          position: 'right', beginAtZero: true, suggestedMax: maxPct * 1.15,
+          position: 'right', beginAtZero: true, suggestedMax: pctAxisCeiling,
           grid: { drawOnChartArea: false },
           ticks: { callback: (v) => v + '%', font: { family: 'JetBrains Mono', size: 10 }, color: '#6a4ab7' }
         },
