@@ -607,6 +607,11 @@
       </div>
       <button type="button" class="compare-close" id="compareModalCloseX" title="ปิด"><i class="fas fa-xmark"></i></button>
     </div>
+    <div class="compare-scroll" style="border:none; margin-bottom:14px">
+      <div class="chart-box" style="height:260px">
+        <canvas id="compareChart"></canvas>
+      </div>
+    </div>
     <div class="compare-scroll">
       <table class="compare-table">
         <thead>
@@ -1696,6 +1701,44 @@ function populateCompareYearSelect() {
   }
 }
 
+let compareChartInstance = null;
+
+function drawCompareChart(labels, dataA, dataB, labelA, labelB) {
+  const ctx = document.getElementById('compareChart');
+  if (!ctx) return;
+  if (compareChartInstance) { compareChartInstance.destroy(); compareChartInstance = null; }
+  compareChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: labelA, data: dataA, backgroundColor: '#0e6b57', borderRadius: 4, maxBarThickness: 26 },
+        { label: labelB, data: dataB, backgroundColor: '#f0a324', borderRadius: 4, maxBarThickness: 26 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 20 } },
+      plugins: {
+        legend: { display: true, position: 'top', labels: { font: { family: 'Sarabun', size: 12 }, boxWidth: 12 } },
+        tooltip: { callbacks: { label: (item) => item.dataset.label + ': ' + fmt(item.parsed.y) + ' ลิตร' } },
+        datalabels: {
+          anchor: 'end', align: 'end',
+          color: (c) => c.datasetIndex === 0 ? '#0a3d33' : '#7a4d00',
+          font: { family: 'JetBrains Mono', size: 9, weight: '600' },
+          rotation: -90,
+          formatter: (v) => v ? fmt(v) : ''
+        }
+      },
+      scales: {
+        y: { beginAtZero: true, grid: { color: 'rgba(14,107,87,.08)' }, ticks: { font: { family: 'JetBrains Mono' } } },
+        x: { grid: { display: false }, ticks: { font: { family: 'Sarabun' } } }
+      }
+    }
+  });
+}
+
 async function renderCompareTable() {
   const data = window.monthlyExportData;
   const tbody = document.getElementById('compareBody');
@@ -1720,6 +1763,7 @@ async function renderCompareTable() {
   }
 
   let totalA = 0, totalB = 0;
+  const chartLabels = [], chartA = [], chartB = [];
 
   data.rows.forEach(r => {
     let valA, valB;
@@ -1732,6 +1776,7 @@ async function renderCompareTable() {
       valA = product === '__all__' ? (r.target || 0) : (r.planByProduct[product] || 0);
       valB = product === '__all__' ? (r.actual || 0) : (r.actualByProduct[product] || 0);
     }
+    chartLabels.push(r.label); chartA.push(valA); chartB.push(valB);
     const diff = valB - valA;
     totalA += valA; totalB += valB;
     const diffClass = diff > 0 ? 'diff-pos' : (diff < 0 ? 'diff-neg' : 'diff-zero');
@@ -1744,6 +1789,12 @@ async function renderCompareTable() {
       '<td>' + fmtPct(valB, valA) + '</td>';
     tbody.appendChild(tr);
   });
+
+  drawCompareChart(
+    chartLabels, chartA, chartB,
+    document.getElementById('compareColHead1').textContent,
+    document.getElementById('compareColHead2').textContent
+  );
 
   const totalDiff = totalB - totalA;
   const totalDiffClass = totalDiff > 0 ? 'diff-pos' : (totalDiff < 0 ? 'diff-neg' : 'diff-zero');
@@ -1758,10 +1809,12 @@ function openCompareModal() {
   if (!window.monthlyExportData) { alert('ยังไม่มีข้อมูลให้เปรียบเทียบ'); return; }
   populateCompareProductSelect();
   populateCompareYearSelect();
-  renderCompareTable();
   const overlay = document.getElementById('compareModalOverlay');
   overlay.classList.add('show');
-  requestAnimationFrame(() => overlay.classList.add('visible'));
+  requestAnimationFrame(() => {
+    overlay.classList.add('visible');
+    renderCompareTable();
+  });
 }
 function closeCompareModal() {
   const overlay = document.getElementById('compareModalOverlay');
