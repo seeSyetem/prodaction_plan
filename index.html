@@ -1784,7 +1784,10 @@ function drawCompareChartInner() {
           }
         },
         datalabels: {
-          anchor: 'end', align: 'end', offset: 2, clamp: true,
+          anchor: (c) => compareChartType === 'line' ? (c.datasetIndex === 0 ? 'end' : 'start') : 'end',
+          align: (c) => compareChartType === 'line' ? (c.datasetIndex === 0 ? 'top' : 'bottom') : 'end',
+          offset: compareChartType === 'line' ? 4 : 2,
+          clamp: true,
           color: (c) => c.datasetIndex === 0 ? '#0a3d33' : '#7a4d00',
           font: (c) => ({ family: 'JetBrains Mono', size: c.chart.width < 500 ? 8 : 10, weight: '600' }),
           formatter: (v) => v ? fmt(v) : ''
