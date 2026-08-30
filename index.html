@@ -1765,8 +1765,10 @@ function drawCompareChartInner() {
   if (!ctx) return;
   if (compareChartInstance) { compareChartInstance.destroy(); compareChartInstance = null; }
   const maxVal = Math.max(0, ...dataA, ...dataB);
-  const pctVals = dataA.map((v, i) => v > 0 ? (dataB[i] || 0) / v * 100 : null).filter(v => v != null);
-  const maxPct = pctVals.length ? Math.max(120, ...pctVals) : 120;
+  const pctValsRaw = dataA.map((v, i) => v > 0 ? (dataB[i] || 0) / v * 100 : null).filter(v => v != null);
+  // กันค่า % พุ่งสูงผิดปกติ (เช่น เดือนที่ค่าฐานน้อยมาก) ไม่ให้ดึงสเกลแกนขวาจนเส้นอื่นแบนราบ
+  const pctValsForScale = pctValsRaw.filter(v => v <= 400);
+  const maxPct = pctValsForScale.length ? Math.max(120, ...pctValsForScale) : (pctValsRaw.length ? Math.max(120, ...pctValsRaw) : 120);
   compareChartInstance = new Chart(ctx, {
     type: compareChartType,
     data: { labels, datasets: buildCompareDatasets(compareChartType, dataA, dataB, labelA, labelB) },
