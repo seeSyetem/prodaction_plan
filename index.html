@@ -1708,6 +1708,7 @@ function drawCompareChart(labels, dataA, dataB, labelA, labelB) {
   const ctx = document.getElementById('compareChart');
   if (!ctx) return;
   if (compareChartInstance) { compareChartInstance.destroy(); compareChartInstance = null; }
+  const maxVal = Math.max(0, ...dataA, ...dataB);
   compareChartInstance = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -1720,7 +1721,7 @@ function drawCompareChart(labels, dataA, dataB, labelA, labelB) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      layout: { padding: { top: 34, bottom: 4 } },
+      layout: { padding: { top: 46, bottom: 4 } },
       plugins: {
         legend: {
           display: true, position: 'top', align: 'center',
@@ -1735,7 +1736,7 @@ function drawCompareChart(labels, dataA, dataB, labelA, labelB) {
         }
       },
       scales: {
-        y: { beginAtZero: true, grid: { color: 'rgba(14,107,87,.08)' }, ticks: { font: { family: 'JetBrains Mono' } } },
+        y: { beginAtZero: true, suggestedMax: maxVal * 1.18, grid: { color: 'rgba(14,107,87,.08)' }, ticks: { font: { family: 'JetBrains Mono' } } },
         x: { grid: { display: false }, ticks: { font: { family: 'Sarabun' } } }
       }
     }
