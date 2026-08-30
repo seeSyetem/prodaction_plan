@@ -365,6 +365,7 @@
   .compare-close:hover{background:var(--brand-pale); color:var(--brand-deep)}
   .compare-scroll{overflow:auto; border:1px solid var(--line); border-radius:10px}
   .compare-chart-wrap{margin-bottom:16px; padding-top:6px}
+  .compare-chart-tools{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:6px}
   table.compare-table{border-collapse:collapse; width:100%; min-width:560px}
   table.compare-table th, table.compare-table td{padding:9px 10px; border:1px solid var(--line); font-size:13px; text-align:right}
   table.compare-table thead th{
@@ -607,6 +608,20 @@
         </select>
       </div>
       <button type="button" class="compare-close" id="compareModalCloseX" title="ปิด"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="compare-chart-tools">
+      <div class="chart-legend" id="compareLegend">
+        <span data-index="0"><i class="dot dot-plan"></i><span id="compareLegendLabel1">ปี 2026</span></span>
+        <span data-index="1"><i class="dot dot-actual"></i><span id="compareLegendLabel2">ปี 2025</span></span>
+        <span data-index="2"><i class="dot dot-yield"></i>% เปลี่ยนแปลง</span>
+      </div>
+      <div class="chart-tools">
+        <div class="chart-type-toggle" id="compareTypeToggle">
+          <button type="button" data-type="bar" class="active"><i class="fas fa-chart-column"></i>แท่ง</button>
+          <button type="button" data-type="line"><i class="fas fa-chart-line"></i>เส้น</button>
+        </div>
+        <button type="button" class="chart-export-btn" id="compareChartExportBtn" title="ดาวน์โหลดรูปกราฟ"><i class="fas fa-download"></i></button>
+      </div>
     </div>
     <div class="compare-chart-wrap">
       <div class="chart-box" style="height:260px">
@@ -1483,6 +1498,7 @@ function setupChartLegend(legendId, getChart) {
 
 syncToggleActive('monthlyTypeToggle', monthlyChartType);
 syncToggleActive('productTypeToggle', productChartType);
+syncToggleActive('compareTypeToggle', compareChartType);
 
 setupChartControls(
   'monthlyTypeToggle', 'monthlyExportBtn',
@@ -1494,10 +1510,16 @@ setupChartControls(
   () => productChartInstance, (t) => { productChartType = t; }, drawProductChart,
   'กราฟตามผลิตภัณฑ์.png', 'chartType_product'
 );
+setupChartControls(
+  'compareTypeToggle', 'compareChartExportBtn',
+  () => compareChartInstance, (t) => { compareChartType = t; }, drawCompareChartInner,
+  'กราฟเปรียบเทียบรายเดือน.png', 'chartType_compare'
+);
 
 setupChartLegend('monthlyLegend', () => monthlyChartInstance);
 setupChartLegend('productLegend', () => productChartInstance);
 setupChartLegend('yieldLegend', () => yieldChartInstance);
+setupChartLegend('compareLegend', () => compareChartInstance);
 
 (function setupYieldExport() {
   const exportBtn = document.getElementById('yieldExportBtn');
@@ -1703,31 +1725,64 @@ function populateCompareYearSelect() {
 }
 
 let compareChartInstance = null;
+let compareChartType = localStorage.getItem('chartType_compare') || 'bar';
+let compareChartData = { labels: [], dataA: [], dataB: [], labelA: '', labelB: '' };
+
+function buildCompareDatasets(type, dataA, dataB, labelA, labelB) {
+  const pctData = dataA.map((v, i) => v > 0 ? Math.round((dataB[i] || 0) / v * 1000) / 10 : null);
+  const mainDatasets = type === 'line' ? [
+    { label: labelA, data: dataA, borderColor: '#0e6b57', backgroundColor: 'rgba(14,107,87,.12)', pointBackgroundColor: '#0e6b57', pointRadius: 3, borderWidth: 2, tension: 0.3, fill: true },
+    { label: labelB, data: dataB, borderColor: '#f0a324', backgroundColor: 'rgba(240,163,36,.15)', pointBackgroundColor: '#f0a324', pointRadius: 3, borderWidth: 2, tension: 0.3, fill: true }
+  ] : [
+    { label: labelA, data: dataA, backgroundColor: '#0e6b57', borderRadius: 4, maxBarThickness: 26 },
+    { label: labelB, data: dataB, backgroundColor: '#f0a324', borderRadius: 4, maxBarThickness: 26 }
+  ];
+  const pctDataset = {
+    label: '% เปลี่ยนแปลง', data: pctData, type: 'line', yAxisID: 'y1',
+    borderColor: '#6a4ab7', backgroundColor: '#6a4ab7', pointBackgroundColor: '#6a4ab7',
+    borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false, order: -2,
+    datalabels: {
+      color: '#4a2f8a', anchor: 'end', align: 'top', offset: type === 'line' ? 16 : 6, clamp: true,
+      font: { family: 'JetBrains Mono', size: 9, weight: '600' },
+      formatter: (v) => v != null ? v + '%' : ''
+    }
+  };
+  return [...mainDatasets, pctDataset];
+}
 
 function drawCompareChart(labels, dataA, dataB, labelA, labelB) {
+  compareChartData = { labels, dataA, dataB, labelA, labelB };
+  const label1El = document.getElementById('compareLegendLabel1');
+  const label2El = document.getElementById('compareLegendLabel2');
+  if (label1El) label1El.textContent = labelA;
+  if (label2El) label2El.textContent = labelB;
+  drawCompareChartInner();
+}
+
+function drawCompareChartInner() {
+  const { labels, dataA, dataB, labelA, labelB } = compareChartData;
   const ctx = document.getElementById('compareChart');
   if (!ctx) return;
   if (compareChartInstance) { compareChartInstance.destroy(); compareChartInstance = null; }
   const maxVal = Math.max(0, ...dataA, ...dataB);
+  const pctVals = dataA.map((v, i) => v > 0 ? (dataB[i] || 0) / v * 100 : null).filter(v => v != null);
+  const maxPct = pctVals.length ? Math.max(120, ...pctVals) : 120;
   compareChartInstance = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { label: labelA, data: dataA, backgroundColor: '#0e6b57', borderRadius: 4, maxBarThickness: 26 },
-        { label: labelB, data: dataB, backgroundColor: '#f0a324', borderRadius: 4, maxBarThickness: 26 }
-      ]
-    },
+    type: compareChartType,
+    data: { labels, datasets: buildCompareDatasets(compareChartType, dataA, dataB, labelA, labelB) },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       layout: { padding: { top: 46, bottom: 4 } },
       plugins: {
-        legend: {
-          display: true, position: 'top', align: 'center',
-          labels: { font: { family: 'Sarabun', size: 12 }, boxWidth: 12, padding: 14 }
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (item) => item.dataset.yAxisID === 'y1'
+              ? item.dataset.label + ': ' + item.parsed.y + '%'
+              : item.dataset.label + ': ' + fmt(item.parsed.y) + ' ลิตร'
+          }
         },
-        tooltip: { callbacks: { label: (item) => item.dataset.label + ': ' + fmt(item.parsed.y) + ' ลิตร' } },
         datalabels: {
           anchor: 'end', align: 'end', offset: 2, clamp: true,
           color: (c) => c.datasetIndex === 0 ? '#0a3d33' : '#7a4d00',
@@ -1737,6 +1792,11 @@ function drawCompareChart(labels, dataA, dataB, labelA, labelB) {
       },
       scales: {
         y: { beginAtZero: true, suggestedMax: maxVal * 1.18, grid: { color: 'rgba(14,107,87,.08)' }, ticks: { font: { family: 'JetBrains Mono' } } },
+        y1: {
+          position: 'right', beginAtZero: true, suggestedMax: maxPct * 1.15,
+          grid: { drawOnChartArea: false },
+          ticks: { callback: (v) => v + '%', font: { family: 'JetBrains Mono', size: 10 }, color: '#6a4ab7' }
+        },
         x: { grid: { display: false }, ticks: { font: { family: 'Sarabun' } } }
       }
     }
